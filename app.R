@@ -76,6 +76,21 @@ rename_after_audit <- function(df, name_test) {
 }
 
 
+# This function MUST contain renaming instructions for all key variables of all
+# consistency tests currently implemented! Also, "consistency" is pragmatically
+# included here because it's always present, although it's not a key variable.
+rename_key_vars <- function(var) {
+  switch(
+    var,
+    "x"  = "Mean",
+    "sd" = "SD",
+    "n"  = "N",
+    "consistency" = "Consistency",
+    var
+  )
+}
+
+
 rename_after_testing_seq <- function(df, name_test) {
   names(df) <- str_to_title(names(df))
   df <- if (name_test == "GRIM") {
@@ -106,67 +121,37 @@ rename_after_testing_seq <- function(df, name_test) {
       Variable = Var
     )
   }
-  df$Variable <- vapply(df$Variable, function(var) {
-    switch(
-      var,
-      "x"  = "Mean",
-      "sd" = "SD",
-      "n"  = "N"
-    )
-  }, character(1L))
+  df$Variable <- vapply(df$Variable, rename_key_vars, character(1L))
   df
 }
 
 
-# TODO: PROGRAMATICALLY GENERALIZE THIS FUNCTION TO THE OUTPUT OF `audit_seq()`
-# FOR THE SEQUENCE MAPPERS OF ALL THE CONSISTENCY TESTS! BETTER REPLACE
-# `rename()` BY `case_when()` OR SO!
+key_cols <- function(df) {
+  df[1L:(match("consistency", names(df)) - 1L)]
+}
+
+
 rename_after_audit_seq <- function(df) {
-  names(df) <- str_to_title(names(df))
-  rename(
-    df,
-     "Mean" = "X",
-     # "SD" = "Sd",
-     "Total hits" = "Hits_total",
-     "Hits for Mean" = "Hits_x",
-     # "Hits for SD" = "Hits_sd",
-     "Hits for N" = "Hits_n",
-     "Difference from Mean" = "Diff_x",
-     "Difference from Mean (upward)" = "Diff_x_up",
-     "Difference from Mean (downward)" = "Diff_x_down",
-     # "Difference from SD" = "Diff_sd",
-     # "Difference from SD (upward)" = "Diff_sd_up",
-     # "Difference from SD (downward)" = "Diff_sd_down",
-     "Difference from N" = "Diff_n",
-     "Difference from N (upward)" = "Diff_n_up",
-     "Difference from N (downward)" = "Diff_n_down"
+  regex_key_var_names <- paste0(
+    "(?<=(^(hits_|diff_)))(",
+    paste0(names(key_cols(df)), collapse = "|"),
+    ")(?=(_up|_down|))"
   )
-
-
-  # rename_with(df, function(column_names) {
-  #   column_names <- str_to_title(column_names)
-  #   for (i in seq_along(column_names)) {
-  #     column_names[i] <- switch(
-  #       column_names[i],
-  #       "X" = "Mean",
-  #       "Sd" = "SD",
-  #       "Hits_total" = "Total hits",
-  #       "Hits_x" = "Hits for Mean",
-  #       "Hits_sd" = "Hits for SD",
-  #       "Hits_n" = "Hits for N",
-  #       "Diff_x" = "Difference from Mean",
-  #       "Diff_x_up" = "Difference from Mean (upward)",
-  #       "Diff_x_down" = "Difference from Mean (downward)",
-  #       "Diff_sd" = "Difference from SD",
-  #       "Diff_sd_up" = "Difference from SD (upward)",
-  #       "Diff_sd_down" = "Difference from SD (downward)",
-  #       "Diff_n" = "Difference from N",
-  #       "Diff_n_up" = "Difference from N (upward)",
-  #       "Diff_n_down" = "Difference from N (downward)"
-  #     )
-  #   }
-  #   column_names
-  # })
+  names_all <- names(df)
+  for (i in seq_along(names_all)) {
+    if (str_starts(names_all[i], "(hits_|diff_)")) {
+      names_all[i] <- names_all[i] |>
+        str_replace(regex_key_var_names, rename_key_vars) |>
+        str_replace("^hits_", "Hits for ") |>
+        str_replace("^diff_", "Difference in ") |>
+        str_replace("_up$", " (upward)") |>
+        str_replace("_down$", " (downward)")
+    } else {
+      names_all[i] <- rename_key_vars(names_all[i])
+    }
+  }
+  names_all[names_all == "Hits for total"] <- "Total number of hits"
+  `names<-`(df, value = names_all)
 }
 
 
