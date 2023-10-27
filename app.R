@@ -9,12 +9,13 @@ library(scrutiny)
 
 # Helper functions --------------------------------------------------------
 
-rename_after_testing <- function(df, name_test) {
+rename_after_testing <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
   if (name_test == "GRIM") {
+    mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
     rename(
       df,
-      Mean = X,
+      "{mean_or_percent}" := X,
       `GRIM ratio` = Ratio
     )
   } else if (name_test == "GRIMMER") {
@@ -26,8 +27,8 @@ rename_after_testing <- function(df, name_test) {
   } else if (name_test == "DEBIT") {
     rename(
       df,
-      `Mean` = X,
-      `SD` = Sd,
+      Mean = X,
+      SD = Sd,
       `Lower SD` = Sd_lower,
       `Include lower SD` = Sd_incl_lower,
       `Upper SD` = Sd_upper,
@@ -70,34 +71,35 @@ rename_after_audit <- function(df, name_test) {
       `Inconsistency rate` = incons_rate,
       `Mean of means` = mean_x,
       `Mean of SDs` = mean_sd,
-      `Distinct sample sizes` = `distinct_n`
+      `Distinct sample sizes` = distinct_n
     )
   }
 }
 
 
 # This function MUST contain renaming instructions for all key variables of all
-# consistency tests currently implemented! Also, "consistency" is pragmatically
-# included here because it's always present, although it's not a key variable.
+# consistency tests currently implemented! Other column names are set to title
+# case. TODO: CHECK IF TITLE CASE IS CORRECT HERE!
 rename_key_vars <- function(var) {
-  switch(
-    var,
-    "x"  = "Mean",
-    "sd" = "SD",
-    "n"  = "N",
-    "consistency" = "Consistency",
-    var
-  )
+  var |>
+    switch(
+      "x"  = "Mean",
+      "sd" = "SD",
+      var
+    ) |>
+    str_to_title()
 }
 
 
-rename_after_testing_seq <- function(df, name_test) {
+rename_after_testing_seq <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
   df <- if (name_test == "GRIM") {
+    mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
     rename(
       df,
-      Mean = X,
+      "{mean_or_percent}" := X,
       `GRIM ratio` = Ratio,
+      `Step difference to reported` = Diff_var,
       Variable = Var
     )
   } else if (name_test == "GRIMMER") {
@@ -105,6 +107,7 @@ rename_after_testing_seq <- function(df, name_test) {
       df,
       Mean = X,
       SD = Sd,
+      `Step difference to reported` = Diff_var,
       Variable = Var
     )
   } else if (name_test == "DEBIT") {
@@ -118,6 +121,7 @@ rename_after_testing_seq <- function(df, name_test) {
       `Include upper SD` = Sd_incl_upper,
       `Lower mean` = X_lower,
       `Upper mean` = X_upper,
+      `Step difference to reported` = Diff_var,
       Variable = Var
     )
   }
@@ -126,7 +130,7 @@ rename_after_testing_seq <- function(df, name_test) {
 }
 
 
-key_cols <- function(df) {
+select_key_cols <- function(df) {
   df[1L:(match("consistency", names(df)) - 1L)]
 }
 
@@ -134,7 +138,7 @@ key_cols <- function(df) {
 rename_after_audit_seq <- function(df) {
   regex_key_var_names <- paste0(
     "(?<=(^(hits_|diff_)))(",
-    paste0(names(key_cols(df)), collapse = "|"),
+    paste0(names(select_key_cols(df)), collapse = "|"),
     ")(?=(_up|_down|))"
   )
   names_all <- names(df)
@@ -143,7 +147,7 @@ rename_after_audit_seq <- function(df) {
       names_all[i] <- names_all[i] |>
         str_replace(regex_key_var_names, rename_key_vars) |>
         str_replace("^hits_", "Hits for ") |>
-        str_replace("^diff_", "Difference in ") |>
+        str_replace("^diff_", "Least step difference in ") |>
         str_replace("_up$", " (upward)") |>
         str_replace("_down$", " (downward)")
     } else {
@@ -162,9 +166,13 @@ plot_test_results <- function(df, name_test, size_text) {
   } else if (name_test == "DEBIT") {
     debit_plot(df, label_size = size_text * 0.285) +
       theme_minimal(base_size = size_text)
+  } else {
+    stop("No visualization defined")
   }
 }
 
+
+# options(shiny.sanitize.errors = TRUE)
 
 
 # Define UI ---------------------------------------------------------------
@@ -225,7 +233,7 @@ ui <- page_sidebar(
       full_screen = TRUE
     ),
     card(
-      card_header("Visualization"),
+      card_header("Visualization (dispersed sequences)"),
       plotOutput("output_plot_seq"),
       # card_body(max_height = "10px"),
       max_height = "500px",
@@ -234,7 +242,7 @@ ui <- page_sidebar(
   ),
   # Further analyses -- one wide card below:
   card(
-    card_header("Summary"),
+    card_header("Summary (dispersed sequences)"),
     tableOutput("output_df_audit_seq"),
     # card_body(max_height = "10px"),
     full_screen = TRUE
@@ -251,6 +259,7 @@ server <- function(input, output) {
   # Basic analyses:
 
   user_data <- reactive({
+    validate(need(input$input_df, "Please upload tabular data."))
     # Decimal zeros in the input are restored to the maximum of those already
     # present -- or, if the user-specified number is greater, to that number:
     input$input_df$datapath |>
@@ -267,19 +276,36 @@ server <- function(input, output) {
     #   restore_zeros_df(!n)
     # # Should this be the width?: max(input$digits, max(decimal_places(df$x)))
 
+    if (input$name_test == "DEBIT") {
+      msg_error <- "Error: DEBIT only works with means and SDs of binary data."
+      validate(
+        need(all(between(as.numeric(user_data()$x), 0, 1)), msg_error),
+        need(all(between(as.numeric(user_data()$sd), 0, 1)), msg_error)
+      )
+    }
+
     # Test for consistency using a mapping function, then return the data frame:
-    switch(
+    out <- switch(
       input$name_test,
       "GRIM"    = grim_map(user_data(), percent = input$mean_percent == "Percentage"),
       "GRIMMER" = grimmer_map(user_data()),
       "DEBIT"   = debit_map(user_data())
     )
+
+    # Many consistency tests have a key argument / column corresponding to the
+    # sample size ("n"). It should be integer because, as a double, the app
+    # would misleadingly display it like, e.g., "25.00".
+    if (any(names(out) == "n")) {
+      mutate(out, n = as.integer(n))
+    } else {
+      out
+    }
     # rename(!!input$x := x, !!input$n := n)
   })
 
   output$output_df <- renderTable({
     tested_df() |>
-      rename_after_testing(input$name_test)
+      rename_after_testing(input$name_test, percent = input$mean_percent == "Percentage")
   })
 
   output$output_df_audit <- renderTable({
@@ -306,7 +332,7 @@ server <- function(input, output) {
 
   output$output_df_seq <- renderTable({
     tested_df_seq() |>
-      rename_after_testing_seq(input$name_test)
+      rename_after_testing_seq(input$name_test, percent = input$mean_percent == "Percentage")
   })
 
   output$output_df_audit_seq <- renderTable({
