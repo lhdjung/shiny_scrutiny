@@ -79,7 +79,7 @@ rename_after_audit <- function(df, name_test) {
 
 # This function MUST contain renaming instructions for all key variables of all
 # consistency tests currently implemented! Other column names are set to title
-# case. TODO: CHECK IF TITLE CASE IS CORRECT HERE!
+# case.
 rename_key_vars <- function(var) {
   var |>
     switch(
@@ -93,9 +93,9 @@ rename_key_vars <- function(var) {
 
 rename_after_testing_seq <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
-  df <- if (name_test == "GRIM") {
+  if (name_test == "GRIM") {
     mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
-    rename(
+    df <- rename(
       df,
       "{mean_or_percent}" := X,
       `GRIM ratio` = Ratio,
@@ -103,7 +103,7 @@ rename_after_testing_seq <- function(df, name_test, percent) {
       Variable = Var
     )
   } else if (name_test == "GRIMMER") {
-    rename(
+    df <- rename(
       df,
       Mean = X,
       SD = Sd,
@@ -111,7 +111,7 @@ rename_after_testing_seq <- function(df, name_test, percent) {
       Variable = Var
     )
   } else if (name_test == "DEBIT") {
-    rename(
+    df <- rename(
       df,
       Mean = X,
       SD = Sd,
@@ -172,80 +172,107 @@ plot_test_results <- function(df, name_test, size_text) {
 }
 
 
-# options(shiny.sanitize.errors = TRUE)
+# TODO: USE
+# https://rstudio.github.io/bslib/articles/sidebars/index.html#conditional-contents
+# TO CREATE A NEW PAGE WITH ITS OWN SIDEBAR FOR DUPLICATE ANALYSIS!
 
 
 # Define UI ---------------------------------------------------------------
 
-ui <- page_sidebar(
-  title = "scrutiny webapp",
+# # Prepare optional cards for duplicate analysis:
+# cards_duplicate_analysis <- list(
+#   card(
+#     card_header("Frequency table"),
+#     tableOutput("output_duplicate_count")
+#   ),
+#   card(
+#     card_header("")
+#   )
+# )
+
+ui <- page_navbar(
+  title = "Your data",
+  id = "nav",
   sidebar = sidebar(
     # Data upload:
     fileInput("input_df", "Summary data file:", accept = "text/plain"),
-    selectInput(
-      "name_test", "Consistency test:",
-      choices = c("GRIM", "GRIMMER", "DEBIT")
+    conditionalPanel(
+      "input.nav === 'Consistency testing'",
+      selectInput(
+        "name_test", "Consistency test:",
+        choices = c("GRIM", "GRIMMER", "DEBIT")
+      ),
+      # Identifying `x` and `n` columns:
+      textInput("x", "Mean / percentage column:", "x"),
+      textInput("n", "Sample size column:", "n"),
+      numericInput("digits", label = "Restore decimal zeros:", value = 0L),
+      # Mean / percentage selection:
+      selectInput(
+        "mean_percent", label = "Mean or percentage?",
+        choices = c("Mean", "Percentage")
+      ),
+      numericInput("plot_size_text", label = "Plot text size:", value = 14)
     ),
-    # Identifying `x` and `n` columns:
-    textInput("x", "Mean / percentage column:", "x"),
-    textInput("n", "Sample size column:", "n"),
-    numericInput("digits", label = "Restore decimal zeros:", value = 0L),
-    # Mean / percentage selection:
-    selectInput(
-      "mean_percent", label = "Mean or percentage?",
-      choices = c("Mean", "Percentage")
-    ),
-    numericInput("plot_size_text", label = "Plot text size:", value = 14)
+    conditionalPanel(
+      "input.nav === 'Duplicate analysis'"
+    )
   ),
-  # Basic analyses -- two long cards side by side:
-  layout_column_wrap(
-    0.5,
+  nav_panel(
+    "Consistency testing",
+    # Basic analyses -- two long cards side by side:
+    layout_column_wrap(
+      0.5,
+      card(
+        card_header("Results by case"),
+        tableOutput("output_df"),
+        # card_body(max_height = "10px"),
+        max_height = "500px",
+        full_screen = TRUE
+      ),
+      card(
+        card_header("Visualization"),
+        plotOutput("output_plot"),
+        # card_body(max_height = "10px"),
+        max_height = "500px",
+        full_screen = TRUE
+      ),
+    ),
+    # Basic analyses -- one wide card below:
     card(
-      card_header("Results by case"),
-      tableOutput("output_df"),
+      card_header("Summary"),
+      tableOutput("output_df_audit"),
       # card_body(max_height = "10px"),
-      max_height = "500px",
       full_screen = TRUE
     ),
-    card(
-      card_header("Visualization"),
-      plotOutput("output_plot"),
-      # card_body(max_height = "10px"),
-      max_height = "500px",
-      full_screen = TRUE
+    # Further analyses -- two long cards side by side:
+    layout_column_wrap(
+      0.5,
+      card(
+        card_header("Dispersed sequences"),
+        tableOutput("output_df_seq"),
+        # card_body(max_height = "10px"),
+        max_height = "500px",
+        full_screen = TRUE
+      ),
+      card(
+        card_header("Visualization (dispersed sequences)"),
+        plotOutput("output_plot_seq"),
+        # card_body(max_height = "10px"),
+        max_height = "500px",
+        full_screen = TRUE
+      ),
     ),
-  ),
-  # Basic analyses -- one wide card below:
-  card(
-    card_header("Summary"),
-    tableOutput("output_df_audit"),
-    # card_body(max_height = "10px"),
-    full_screen = TRUE
-  ),
-  # Further analyses -- two long cards side by side:
-  layout_column_wrap(
-    0.5,
+    # Further analyses -- one wide card below:
     card(
-      card_header("Dispersed sequences"),
-      tableOutput("output_df_seq"),
+      card_header("Summary (dispersed sequences)"),
+      tableOutput("output_df_audit_seq"),
       # card_body(max_height = "10px"),
-      max_height = "500px",
       full_screen = TRUE
-    ),
-    card(
-      card_header("Visualization (dispersed sequences)"),
-      plotOutput("output_plot_seq"),
-      # card_body(max_height = "10px"),
-      max_height = "500px",
-      full_screen = TRUE
-    ),
+    )
   ),
-  # Further analyses -- one wide card below:
-  card(
-    card_header("Summary (dispersed sequences)"),
-    tableOutput("output_df_audit_seq"),
-    # card_body(max_height = "10px"),
-    full_screen = TRUE
+  nav_panel(
+    "Duplicate analysis",
+    "Page 2 contents"
   ),
   fillable = FALSE
 )
