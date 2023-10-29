@@ -73,13 +73,13 @@ rename_after_audit <- function(df, name_test) {
 # consistency tests currently implemented! Other column names are set to title
 # case.
 rename_key_vars <- function(var) {
-  var |>
+  var <- str_to_title(var)
     switch(
-      "x"  = "Mean",
-      "sd" = "SD",
+      var,
+      "X"  = "Mean",
+      "Sd" = "SD",
       var
-    ) |>
-    str_to_title()
+    )
 }
 
 
@@ -161,5 +161,13 @@ plot_test_results <- function(df, name_test, size_text) {
   } else {
     stop("No visualization defined")
   }
+}
+
+
+format_download_file_name <- function(name_input_file, name_technique,
+                                      addendum = NULL) {
+  name_input_file |>
+    str_remove("\\.[^.]+$") |>
+    paste0("_", name_technique, addendum, ".csv")
 }
 

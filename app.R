@@ -4,14 +4,11 @@ library(ggplot2)
 library(dplyr)
 library(readr)
 library(stringr)
+library(janitor)
 library(scrutiny)
 
 # Load helper functions:
 source("scripts/functions.R")
-
-# TODO: USE
-# https://rstudio.github.io/bslib/articles/sidebars/index.html#conditional-contents
-# TO CREATE A NEW PAGE WITH ITS OWN SIDEBAR FOR DUPLICATE ANALYSIS!
 
 
 # Define UI ---------------------------------------------------------------
@@ -28,30 +25,47 @@ source("scripts/functions.R")
 # )
 
 ui <- page_navbar(
-  title = "Your data",
+  title = "Scrutiny webapp",
   id = "nav",
   sidebar = sidebar(
-    # Data upload:
-    fileInput("input_df", "Summary data file:", accept = "text/plain"),
+    # # Data upload:
+    # fileInput("input_df", "Upload your data:", accept = "text/plain"),
+    conditionalPanel(
+      "input.nav === 'Data upload'",
+      fileInput("input_df", "Upload your data:", accept = "text/plain"),
+      # Identifying `x` and `n` columns:
+      textInput("x", "Mean / percentage column:", "x"),
+      textInput("sd", "Standard deviation column:", "sd"),
+      textInput("n", "Sample size column:", "n"),
+      numericInput("digits", label = "Restore decimal zeros:", value = 0L)
+    ),
     conditionalPanel(
       "input.nav === 'Consistency testing'",
       selectInput(
         "name_test", "Consistency test:",
         choices = c("GRIM", "GRIMMER", "DEBIT")
       ),
-      # Identifying `x` and `n` columns:
-      textInput("x", "Mean / percentage column:", "x"),
-      textInput("n", "Sample size column:", "n"),
-      numericInput("digits", label = "Restore decimal zeros:", value = 0L),
       # Mean / percentage selection:
       selectInput(
         "mean_percent", label = "Mean or percentage?",
         choices = c("Mean", "Percentage")
       ),
-      numericInput("plot_size_text", label = "Plot text size:", value = 14)
+      numericInput("plot_size_text", label = "Plot text size:", value = 14),
+      downloadButton("download_consistency_test", "Download results"),
+      downloadButton("download_consistency_test_summary", "Download summary")
     ),
     conditionalPanel(
       "input.nav === 'Duplicate analysis'"
+    ),
+    conditionalPanel(
+      "input.nav === 'About'"
+    )
+  ),
+  nav_panel(
+    "Data upload",
+    card(
+      card_header("Data preview"),
+      tableOutput("uploaded_data")
     )
   ),
   nav_panel(
@@ -109,7 +123,11 @@ ui <- page_navbar(
   ),
   nav_panel(
     "Duplicate analysis",
-    "Page 2 contents"
+    "Watch this space!"
+  ),
+  nav_panel(
+    "About",
+    textOutput("about_text")
   ),
   fillable = FALSE
 )
@@ -120,25 +138,46 @@ ui <- page_navbar(
 
 server <- function(input, output) {
 
-  # Basic analyses:
-
+  # Capture the user-uploaded dataframe and, if necessary, rename some columns:
   user_data <- reactive({
-    validate(need(input$input_df, "Please upload tabular data."))
-    # Decimal zeros in the input are restored to the maximum of those already
-    # present -- or, if the user-specified number is greater, to that number:
-    input$input_df$datapath |>
-      read_delim() |>
-      restore_zeros_df(!n)
-    # Should this be the width?: max(input$digits, max(decimal_places(df$x)))
+    validate(need(input$input_df, "Go to \"Data upload\" first."))
+    out <- read_delim(input$input_df$datapath)
+
+    # Rename the key columns if their names are not "x" and "n" etc.:
+    if (input$x != "x") {
+      out <- rename(out, x = !!input$x)
+    }
+    if (input$sd != "sd") {
+      out <- rename(out, sd = !!input$sd)
+    }
+    if (input$n != "n") {
+      out <- rename(out, n = !!input$n)
+    }
+
+    # Convert the columns to string vectors. Also, restore decimal zeros in the
+    # input to the maximum of those already present -- or, if the user-specified
+    # number is greater, to that number:
+    if (any(names(out) == "n")) {
+      restore_zeros_df(out, !n, width = max(input$digits, max(decimal_places(out$x))))
+    } else {
+      restore_zeros_df(out, width = max(input$digits, max(decimal_places(out$x))))
+    }
+
   })
 
+  # Display uploaded data:
+  output$uploaded_data <- renderTable({
+    user_data()
+  })
+
+  # Basic analyses:
   tested_df <- reactive({
-    # # Decimal zeros in the input are restored to the maximum of those already
-    # # present -- or, if the user-specified number is greater, to that number:
-    # df <- input$input_df$datapath |>
-    #   read_delim() |>
-    #   restore_zeros_df(!n)
-    # # Should this be the width?: max(input$digits, max(decimal_places(df$x)))
+    # # TODO: FIX THIS
+    # if (input$name_test == "GRIM") {
+    #   validate(need(all(c("x", "n") %in% names(user_data()))))
+    # } else if (input$name_test == "GRIMMER") {
+    #   validate(need(all(c("x", "sd", "n") %in% names(user_date()))))
+    # }
 
     if (input$name_test == "DEBIT") {
       msg_error <- "Error: DEBIT only works with means and SDs of binary data."
@@ -172,9 +211,12 @@ server <- function(input, output) {
       rename_after_testing(input$name_test, percent = input$mean_percent == "Percentage")
   })
 
+  df_audit <- reactive({
+    audit(tested_df())
+  })
+
   output$output_df_audit <- renderTable({
-    tested_df() |>
-      audit() |>
+    df_audit() |>
       rename_after_audit(input$name_test)
   })
 
@@ -213,6 +255,52 @@ server <- function(input, output) {
     tested_df_seq() |>
       plot_test_results(input$name_test, input$plot_size_text)
   )
+
+  # The name of a downloaded file will be "<input file name (without
+  # extension)>_<selected consistency test>.csv". For example, after
+  # GRIM-testing "pigs1.csv", the downloaded file will be called
+  # "pigs1_GRIM.csv". When preparing the file itself, `rename_after_testing()`
+  # is called again because it can't be part of the definition of `tested_df()`
+  # itself without breaking compatibility with `audit()` etc.
+  output$download_consistency_test <- downloadHandler(
+    filename = function() {
+      format_download_file_name(input$input_df$name, input$name_test)
+    },
+    content = function(file) {
+      tested_df() |>
+        rename_after_testing(
+          input$name_test, percent = input$mean_percent == "Percentage"
+        ) |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
+  output$download_consistency_test_summary <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, input$name_test, addendum = "_summary"
+      )
+    },
+    content = function(file) {
+      df_audit() |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
+  # TODO: FIX THIS
+  output$about_text <- renderText({
+    paste(
+      "This webapp was made by Lukas Jung in R, using shiny with bslib. \
+      It applies tools from the scrutiny package for error detection \
+      in science.
+      - For more about GRIM, see" #,
+      # a("Brown and Heathers 2017", href="https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
+      # "- For more about GRIMMER, see ",
+      # a("Allard 2018", href="https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
+    )
+  })
 
 }
 
