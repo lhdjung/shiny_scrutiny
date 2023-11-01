@@ -1,5 +1,5 @@
 
-# Helper functions for the server -----------------------------------------
+# Consistency testing -----------------------------------------------------
 
 rename_after_testing <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
@@ -163,6 +163,48 @@ plot_test_results <- function(df, name_test, size_text) {
   }
 }
 
+
+# Duplicate analysis ------------------------------------------------------
+
+rename_duplicate_count_df <- function(df) {
+  `names<-`(df, c("Value", "Duplicate count", "Locations", "Number of locations"))
+}
+
+special_colnames_count_colpair <- c(
+  "Duplicate count (values in both columns)",
+  "Total number of column-1 values",
+  "Total number of column-2 values",
+  "Proportion of column-1 values also in column 2",
+  "Proportion of column-2 values also in column 1"
+)
+
+rename_duplicate_count_colpair_df <- function(df) {
+  `names<-`(df, c(
+      "Original column 1", "Original column 2",
+      special_colnames_count_colpair
+    ))
+}
+
+# rename_duplicate_tally_df <- function(df) {
+#   is_even <- function(x) x %% 2 == 0
+#   df[is_even(seq_len(ncol(df)))]
+# }
+
+rename_duplicate_summary <- function(df, function_ending) {
+  df$term <- switch(
+    function_ending,
+    "count" = c("Duplicate count", "Number of locations"),
+    "count_colpair" = special_colnames_count_colpair,
+    "tally" = c(df$term[1:length(df$term) - 1], "Total")
+  )
+  `names<-`(df, c(
+    "Term", "Mean", "SD", "Median", "Minimum", "Maximum",
+    "Number of missing values", "Proportion of missing values"
+  ))
+}
+
+
+# Other -------------------------------------------------------------------
 
 format_download_file_name <- function(name_input_file, name_technique,
                                       addendum = NULL) {

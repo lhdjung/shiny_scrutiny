@@ -28,8 +28,6 @@ ui <- page_navbar(
   title = "Scrutiny webapp",
   id = "nav",
   sidebar = sidebar(
-    # # Data upload:
-    # fileInput("input_df", "Upload your data:", accept = "text/plain"),
     conditionalPanel(
       "input.nav === 'Data upload'",
       fileInput("input_df", "Upload your data:", accept = "text/plain"),
@@ -55,7 +53,10 @@ ui <- page_navbar(
       downloadButton("download_consistency_test_summary", "Download summary")
     ),
     conditionalPanel(
-      "input.nav === 'Duplicate analysis'"
+      "input.nav === 'Duplicate analysis'",
+      downloadButton("download_duplicate_count", "Download\nfrequency table"),
+      downloadButton("download_duplicate_count_colpair", "Download duplicates across columns"),
+      downloadButton("download_duplicate_tally", "Download value tally at original location")
     ),
     conditionalPanel(
       "input.nav === 'About'"
@@ -63,6 +64,10 @@ ui <- page_navbar(
   ),
   nav_panel(
     "Data upload",
+    card(
+      card_header("Information"),
+      textOutput("text_info_upload")
+    ),
     card(
       card_header("Data preview"),
       tableOutput("uploaded_data")
@@ -123,7 +128,36 @@ ui <- page_navbar(
   ),
   nav_panel(
     "Duplicate analysis",
-    "Watch this space!"
+    card(
+      card_header("1. Frequency table"),
+      tableOutput("output_duplicate_count"),
+      full_screen = TRUE
+    ),
+    card(
+      card_header("Summary (frequency table)"),
+      tableOutput("output_duplicate_count_summary"),
+      full_screen = TRUE
+    ),
+    card(
+      card_header("2. Duplicates across columns"),
+      tableOutput("output_duplicate_count_colpair"),
+      full_screen = TRUE
+    ),
+    card(
+      card_header("Summary (duplicates across columns)"),
+      tableOutput("output_duplicate_count_colpair_summary"),
+      full_screen = TRUE
+    ),
+    card(
+      card_header("3. Value tally at original location"),
+      tableOutput("output_duplicate_tally"),
+      full_screen = TRUE
+    ),
+    card(
+      card_header("Summary (value tally at original location)"),
+      tableOutput("output_duplicate_tally_summary"),
+      full_screen = TRUE
+    )
   ),
   nav_panel(
     "About",
@@ -137,6 +171,14 @@ ui <- page_navbar(
 # Define server logic -----------------------------------------------------
 
 server <- function(input, output) {
+
+  output$text_info_upload <- renderText({c(
+    "Please upload a CSV file or a file in another tabular format.\n",
+    "For GRIM and other consistency tests, you may need to specify
+    the columns to be tested (see sidebar left). They will be shown
+    renamed below.\n",
+    "Duplicate analysis doesn't require doing so."
+  )})
 
   # Capture the user-uploaded dataframe and, if necessary, rename some columns:
   user_data <- reactive({
@@ -256,9 +298,54 @@ server <- function(input, output) {
       plot_test_results(input$name_test, input$plot_size_text)
   )
 
-  # The name of a downloaded file will be "<input file name (without
-  # extension)>_<selected consistency test>.csv". For example, after
-  # GRIM-testing "pigs1.csv", the downloaded file will be called
+  # Conduct the duplicate analyses:
+  duplicate_count_df <- reactive({
+    user_data() |>
+      duplicate_count()
+  })
+  duplicate_count_colpair_df <- reactive({
+    user_data() |>
+      duplicate_count_colpair()
+  })
+  duplicate_tally_df <- reactive({
+    user_data() |>
+      duplicate_tally()
+  })
+
+  # Display the duplicate analyses:
+  output$output_duplicate_count <- renderTable({
+    duplicate_count_df() |>
+      rename_duplicate_count_df()
+  })
+  output$output_duplicate_count_colpair <- renderTable({
+    duplicate_count_colpair_df() |>
+      rename_duplicate_count_colpair_df()
+  })
+  output$output_duplicate_tally <- renderTable({
+    duplicate_tally_df() #|>
+      # rename_duplicate_tally_df()
+  })
+
+  # Summarize the duplicate analyses:
+  output$output_duplicate_count_summary <- renderTable({
+    duplicate_count_df() |>
+      audit() |>
+      rename_duplicate_summary("count")
+  })
+  output$output_duplicate_count_colpair_summary <- renderTable({
+    duplicate_count_colpair_df() |>
+      audit() |>
+      rename_duplicate_summary("count_colpair")
+  })
+  output$output_duplicate_tally_summary <- renderTable({
+    duplicate_tally_df() |>
+      audit() |>
+      rename_duplicate_summary("tally")
+  })
+
+  # Consistency testing download handlers. The name of a downloaded file will be
+  # "<input file name (without extension)>_<selected consistency test>.csv". For
+  # example, after GRIM-testing "pigs1.csv", the downloaded file will be called
   # "pigs1_GRIM.csv". When preparing the file itself, `rename_after_testing()`
   # is called again because it can't be part of the definition of `tested_df()`
   # itself without breaking compatibility with `audit()` etc.
@@ -275,7 +362,6 @@ server <- function(input, output) {
         write_csv(file)
     }
   )
-
   output$download_consistency_test_summary <- downloadHandler(
     filename = function() {
       format_download_file_name(
@@ -289,17 +375,64 @@ server <- function(input, output) {
     }
   )
 
+  # Duplication analysis download handlers:
+  output$download_duplicate_count <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, "duplicate_count",
+      )
+    },
+    content = function(file) {
+      duplicate_count_df() |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+  output$download_duplicate_count_colpair <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, "duplicate_count_colpair",
+      )
+    },
+    content = function(file) {
+      duplicate_count_colpair_df() |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+  output$download_duplicate_tally <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, "duplicate_tally",
+      )
+    },
+    content = function(file) {
+      duplicate_tally_df() |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
   # TODO: FIX THIS
-  output$about_text <- renderText({
-    paste(
-      "This webapp was made by Lukas Jung in R, using shiny with bslib. \
-      It applies tools from the scrutiny package for error detection \
-      in science.
-      - For more about GRIM, see" #,
-      # a("Brown and Heathers 2017", href="https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
-      # "- For more about GRIMMER, see ",
-      # a("Allard 2018", href="https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
-    )
+  # output$about_text <- renderUI({
+  #   paste(
+  #     "This webapp was made by Lukas Jung in R, using shiny with bslib. \
+  #     It applies tools from the scrutiny package for error detection \
+  #     in science.
+  #     - For more about GRIM, see",
+  #     a("Brown and Heathers 2017", href="https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
+  #     "- For more about GRIMMER, see ",
+  #     a("Allard 2018", href="https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
+  #   )
+  # })
+
+  # Like this?
+  url_grim <- a("Brown and Heathers 2017", href="https://journals.sagepub.com/doi/abs/10.1177/1948550616673876")
+  url_grimmer <- a("Allard 2018", href="https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/")
+  url_debit <- a("Heathers and Brown 2019", href="https://osf.io/5vb3u")
+
+  output$about_text <- renderUI({
+    htmltools::tagList("URL link: ", url_grimmer)
   })
 
 }
