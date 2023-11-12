@@ -70,15 +70,16 @@ rename_after_audit <- function(df, name_test) {
 
 
 # This function MUST contain renaming instructions for all key variables of all
-# consistency tests currently implemented! Other column names are set to title
-# case.
-rename_key_vars <- function(var) {
-  var <- str_to_title(var)
+# consistency tests currently implemented! All column names are set to title
+# case first, which already takes care of `n` --> `N`, but also of `consistency`
+# --> `Consistency` (not a key variable, but convenient to cover here).
+rename_key_vars <- function(name) {
+  name <- str_to_title(name)
     switch(
-      var,
+      name,
       "X"  = "Mean",
       "Sd" = "SD",
-      var
+      name
     )
 }
 
@@ -166,8 +167,18 @@ plot_test_results <- function(df, name_test, size_text) {
 
 # Duplicate analysis ------------------------------------------------------
 
+# This transformation is adapted from `broom:::tidy.acf()`:
+tidy_acf <- function(acf_object) {
+  tibble(
+    Lag = as.numeric(acf_object$lag),
+    `Autocorrelation function` = as.numeric(acf_object$acf)
+  )
+}
+
 rename_duplicate_count_df <- function(df) {
-  `names<-`(df, c("Value", "Duplicate count", "Locations", "Number of locations"))
+  `names<-`(df, c(
+    "Value", "Duplicate count", "Locations", "Number of locations"
+  ))
 }
 
 special_colnames_count_colpair <- c(
@@ -195,7 +206,7 @@ rename_duplicate_summary <- function(df, function_ending) {
     function_ending,
     "count" = c("Duplicate count", "Number of locations"),
     "count_colpair" = special_colnames_count_colpair,
-    "tally" = c(df$term[1:length(df$term) - 1], "Total")
+    "tally" = c(df$term[seq_along(df$term) - 1L], "Total")
   )
   `names<-`(df, c(
     "Term", "Mean", "SD", "Median", "Minimum", "Maximum",

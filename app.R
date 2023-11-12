@@ -6,6 +6,7 @@ library(readr)
 library(stringr)
 library(janitor)
 library(scrutiny)
+library(forecast)
 
 # Load helper functions:
 source("scripts/functions.R")
@@ -35,7 +36,7 @@ ui <- page_navbar(
       textInput("x", "Mean / percentage column:", "x"),
       textInput("sd", "Standard deviation column:", "sd"),
       textInput("n", "Sample size column:", "n"),
-      numericInput("digits", label = "Restore decimal zeros:", value = 0L)
+      numericInput("digits", label = "Restore decimal zeros:", value = 0L, min = 0)
     ),
     conditionalPanel(
       "input.nav === 'Consistency testing'",
@@ -48,12 +49,21 @@ ui <- page_navbar(
         "mean_percent", label = "Mean or percentage?",
         choices = c("Mean", "Percentage")
       ),
-      numericInput("plot_size_text", label = "Plot text size:", value = 14),
+      numericInput(
+        "plot_size_text", label = "Plot text size:", value = 14, min = 1
+      ),
       downloadButton("download_consistency_test", "Download results"),
       downloadButton("download_consistency_test_summary", "Download summary")
     ),
     conditionalPanel(
       "input.nav === 'Duplicate analysis'",
+      numericInput(
+        "plot_size_text_acf", label = "Plot text size:", value = 16, min = 1
+      ),
+      numericInput(
+        "acf_ci", label = "Confidence interval (autocorrelation):", value = 0.95,
+        min = 0, max = 1, step = 0.05
+      ),
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
       downloadButton("download_duplicate_count_colpair", "Download duplicates across columns"),
       downloadButton("download_duplicate_tally", "Download value tally at original location")
@@ -129,7 +139,7 @@ ui <- page_navbar(
   nav_panel(
     "Duplicate analysis",
     card(
-      card_header("1. Frequency table"),
+      card_header("Frequency table"),
       tableOutput("output_duplicate_count"),
       full_screen = TRUE
     ),
@@ -139,7 +149,7 @@ ui <- page_navbar(
       full_screen = TRUE
     ),
     card(
-      card_header("2. Duplicates across columns"),
+      card_header("Duplicates across columns"),
       tableOutput("output_duplicate_count_colpair"),
       full_screen = TRUE
     ),
@@ -149,13 +159,23 @@ ui <- page_navbar(
       full_screen = TRUE
     ),
     card(
-      card_header("3. Value tally at original location"),
+      card_header("Value tally at original location"),
       tableOutput("output_duplicate_tally"),
       full_screen = TRUE
     ),
     card(
       card_header("Summary (value tally at original location)"),
       tableOutput("output_duplicate_tally_summary"),
+      full_screen = TRUE
+    ),
+    # card(
+    #   card_header("Autocorrelation results"),
+    #   tableOutput("output_acf_df"),
+    #   full_screen = FALSE
+    # ),
+    card(
+      card_header("Autocorrelation plot"),
+      plotOutput("output_acf_plot"),
       full_screen = TRUE
     )
   ),
@@ -214,13 +234,6 @@ server <- function(input, output) {
 
   # Basic analyses:
   tested_df <- reactive({
-    # # TODO: FIX THIS
-    # if (input$name_test == "GRIM") {
-    #   validate(need(all(c("x", "n") %in% names(user_data()))))
-    # } else if (input$name_test == "GRIMMER") {
-    #   validate(need(all(c("x", "sd", "n") %in% names(user_date()))))
-    # }
-
     if (input$name_test == "DEBIT") {
       msg_error <- "Error: DEBIT only works with means and SDs of binary data."
       validate(
@@ -228,7 +241,6 @@ server <- function(input, output) {
         need(all(between(as.numeric(user_data()$sd), 0, 1)), msg_error)
       )
     }
-
     # Test for consistency using a mapping function, then return the data frame:
     out <- switch(
       input$name_test,
@@ -236,21 +248,21 @@ server <- function(input, output) {
       "GRIMMER" = grimmer_map(user_data()),
       "DEBIT"   = debit_map(user_data())
     )
-
     # Many consistency tests have a key argument / column corresponding to the
     # sample size ("n"). It should be integer because, as a double, the app
-    # would misleadingly display it like, e.g., "25.00".
+    # would misleadingly display it with decimal zeros, like, e.g., "5.00".
     if (any(names(out) == "n")) {
       mutate(out, n = as.integer(n))
     } else {
       out
     }
-    # rename(!!input$x := x, !!input$n := n)
   })
 
   output$output_df <- renderTable({
     tested_df() |>
-      rename_after_testing(input$name_test, percent = input$mean_percent == "Percentage")
+      rename_after_testing(
+        input$name_test, percent = input$mean_percent == "Percentage"
+      )
   })
 
   df_audit <- reactive({
@@ -311,6 +323,23 @@ server <- function(input, output) {
     user_data() |>
       duplicate_tally()
   })
+  user_data_numeric <- reactive({
+    user_data() |>
+      select(where(is_numeric_like)) |>
+      mutate(across(everything(), as.numeric))
+  })
+  # acf_df <- reactive({
+  #   user_data_numeric() |>
+  #     acf(plot = FALSE) |>
+  #     tidy_acf()
+  # })
+  acf_plot <- reactive({
+    user_data_numeric() |>
+      ggAcf(ci = input$acf_ci) +
+      labs(title = NULL, y = "Autocorrelation function") +
+      theme_minimal(base_size = input$plot_size_text_acf) +
+      theme(panel.grid = element_blank())
+  })
 
   # Display the duplicate analyses:
   output$output_duplicate_count <- renderTable({
@@ -324,6 +353,12 @@ server <- function(input, output) {
   output$output_duplicate_tally <- renderTable({
     duplicate_tally_df() #|>
       # rename_duplicate_tally_df()
+  })
+  # output$output_acf_df <- renderTable({
+  #   acf_df()
+  # })
+  output$output_acf_plot <- renderPlot({
+    acf_plot()
   })
 
   # Summarize the duplicate analyses:
@@ -378,9 +413,7 @@ server <- function(input, output) {
   # Duplication analysis download handlers:
   output$download_duplicate_count <- downloadHandler(
     filename = function() {
-      format_download_file_name(
-        input$input_df$name, "duplicate_count",
-      )
+      format_download_file_name(input$input_df$name, "duplicate_count")
     },
     content = function(file) {
       duplicate_count_df() |>
@@ -390,9 +423,7 @@ server <- function(input, output) {
   )
   output$download_duplicate_count_colpair <- downloadHandler(
     filename = function() {
-      format_download_file_name(
-        input$input_df$name, "duplicate_count_colpair",
-      )
+      format_download_file_name(input$input_df$name, "duplicate_count_colpair")
     },
     content = function(file) {
       duplicate_count_colpair_df() |>
@@ -402,9 +433,7 @@ server <- function(input, output) {
   )
   output$download_duplicate_tally <- downloadHandler(
     filename = function() {
-      format_download_file_name(
-        input$input_df$name, "duplicate_tally",
-      )
+      format_download_file_name(input$input_df$name, "duplicate_tally")
     },
     content = function(file) {
       duplicate_tally_df() |>
