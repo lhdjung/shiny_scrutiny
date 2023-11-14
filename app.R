@@ -26,7 +26,7 @@ source("scripts/functions.R")
 # )
 
 ui <- page_navbar(
-  title = "Scrutiny webapp",
+  title = "Scrutiny webapp (beta)",
   id = "nav",
   sidebar = sidebar(
     conditionalPanel(
@@ -52,8 +52,10 @@ ui <- page_navbar(
       numericInput(
         "plot_size_text", label = "Plot text size:", value = 14, min = 1
       ),
-      downloadButton("download_consistency_test", "Download results"),
-      downloadButton("download_consistency_test_summary", "Download summary")
+      downloadButton("download_consistency_test", "Download results by case"),
+      downloadButton("download_consistency_test_summary", "Download summary (results by case)"),
+      downloadButton("download_consistency_test_seq", "Download dispersed sequences"),
+      downloadButton("download_consistency_test_audit_seq", "Download summary (dispersed sequences)"),
     ),
     conditionalPanel(
       "input.nav === 'Duplicate analysis'",
@@ -65,8 +67,11 @@ ui <- page_navbar(
         min = 0, max = 1, step = 0.05
       ),
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
+      downloadButton("download_duplicate_count_audit", "Download summary (frequency table)"),
       downloadButton("download_duplicate_count_colpair", "Download duplicates across columns"),
-      downloadButton("download_duplicate_tally", "Download value tally at original location")
+      downloadButton("download_duplicate_count_colpair_audit", "Download summary (duplicates across columns)"),
+      downloadButton("download_duplicate_tally", "Download value tally at original location"),
+      downloadButton("download_duplicate_tally_audit", "Download summary (value tally at original location)"),
     ),
     conditionalPanel(
       "input.nav === 'About'"
@@ -105,7 +110,7 @@ ui <- page_navbar(
     ),
     # Basic analyses -- one wide card below:
     card(
-      card_header("Summary"),
+      card_header("Summary (results by case)"),
       tableOutput("output_df_audit"),
       # card_body(max_height = "10px"),
       full_screen = TRUE
@@ -352,7 +357,7 @@ server <- function(input, output) {
   })
   output$output_duplicate_tally <- renderTable({
     duplicate_tally_df() #|>
-      # rename_duplicate_tally_df()
+    # rename_duplicate_tally_df()
   })
   # output$output_acf_df <- renderTable({
   #   acf_df()
@@ -378,12 +383,17 @@ server <- function(input, output) {
       rename_duplicate_summary("tally")
   })
 
-  # Consistency testing download handlers. The name of a downloaded file will be
-  # "<input file name (without extension)>_<selected consistency test>.csv". For
-  # example, after GRIM-testing "pigs1.csv", the downloaded file will be called
+
+  # Download handlers (consistency testing) ---------------------------------
+
+  # The name of a downloaded file will be "<input file name (without
+  # extension)>_<selected consistency test>.csv". For example, after
+  # GRIM-testing "pigs1.csv", the downloaded file will be called
   # "pigs1_GRIM.csv". When preparing the file itself, `rename_after_testing()`
   # is called again because it can't be part of the definition of `tested_df()`
   # itself without breaking compatibility with `audit()` etc.
+
+  # Results by case:
   output$download_consistency_test <- downloadHandler(
     filename = function() {
       format_download_file_name(input$input_df$name, input$name_test)
@@ -397,6 +407,7 @@ server <- function(input, output) {
         write_csv(file)
     }
   )
+  # Summary (results by case):
   output$download_consistency_test_summary <- downloadHandler(
     filename = function() {
       format_download_file_name(
@@ -405,32 +416,100 @@ server <- function(input, output) {
     },
     content = function(file) {
       df_audit() |>
+        rename_after_audit(input$name_test) |>
         clean_names() |>
         write_csv(file)
     }
   )
 
-  # Duplication analysis download handlers:
+  # Dispersed sequences:
+  output$download_consistency_test_seq <- downloadHandler(
+    filename = function() {
+      format_download_file_name(input$input_df$name, input$name_test, "_seq")
+    },
+    content = function(file) {
+      tested_df_seq() |>
+        rename_after_testing_seq(
+          input$name_test, percent = input$mean_percent == "Percentage"
+        ) |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+  # Summary (dispersed sequences):
+  output$download_consistency_test_audit_seq <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, input$name_test, "_seq_summary"
+      )
+    },
+    content = function(file) {
+      tested_df_seq() |>
+        audit_seq() |>
+        rename_after_audit_seq() |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
+
+  # Download handlers (duplication analysis) --------------------------------
+
+  # Frequency table:
   output$download_duplicate_count <- downloadHandler(
     filename = function() {
       format_download_file_name(input$input_df$name, "duplicate_count")
     },
     content = function(file) {
       duplicate_count_df() |>
+        rename_duplicate_count_df() |>
         clean_names() |>
         write_csv(file)
     }
   )
+  # Summary (frequency table):
+  output$download_duplicate_count_audit <- downloadHandler(
+    filename = function() {
+      format_download_file_name(input$input_df$name, "duplicate_count", "_summary")
+    },
+    content = function(file) {
+      duplicate_count_df() |>
+        audit() |>
+        rename_duplicate_summary("count") |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
+  # Duplicates across columns:
   output$download_duplicate_count_colpair <- downloadHandler(
     filename = function() {
       format_download_file_name(input$input_df$name, "duplicate_count_colpair")
     },
     content = function(file) {
       duplicate_count_colpair_df() |>
+        rename_duplicate_count_colpair_df() |>
         clean_names() |>
         write_csv(file)
     }
   )
+  # Summary (duplicates across columns):
+  output$download_duplicate_count_colpair_audit <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, "duplicate_count_colpair", "_summary"
+      )
+    },
+    content = function(file) {
+      duplicate_count_colpair_df() |>
+        audit() |>
+        rename_duplicate_summary("count_colpair") |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
+  # Value tally at original location:
   output$download_duplicate_tally <- downloadHandler(
     filename = function() {
       format_download_file_name(input$input_df$name, "duplicate_tally")
@@ -441,6 +520,22 @@ server <- function(input, output) {
         write_csv(file)
     }
   )
+  # Summary (value tally at original location):
+  output$download_duplicate_tally_audit <- downloadHandler(
+    filename = function() {
+      format_download_file_name(
+        input$input_df$name, "duplicate_tally", "_summary"
+      )
+    },
+    content = function(file) {
+      duplicate_tally_df() |>
+        audit() |>
+        rename_duplicate_summary("tally") |>
+        clean_names() |>
+        write_csv(file)
+    }
+  )
+
 
   # TODO: FIX THIS
   # output$about_text <- renderUI({
