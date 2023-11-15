@@ -21,6 +21,9 @@ ui <- page_navbar(
     conditionalPanel(
       "input.nav === 'Data upload'",
       fileInput("input_df", "Upload your data:", accept = "text/plain"),
+      checkboxInput(
+        "use_example_data_pigs5", label = "Use example data", value = FALSE
+      ),
       # Identifying `x` and `n` columns:
       textInput("x", "Mean / percentage column:", "x"),
       textInput("sd", "Standard deviation column:", "sd"),
@@ -29,9 +32,10 @@ ui <- page_navbar(
         "digits", label = "Restore decimal zeros:", value = 0L, min = 0
       ) |>
         tooltip(
-          "Decimal numbers are padded with zeros to match this number \
-          or the greatest number of decimal places from among them, \
-          whichever is greater."
+          "Decimal numbers may have lost trailing zeros, but these are \
+          important when testing for consistency. They are padded with \
+          zeros to match the number chosen here or the greatest number \
+          of decimal places from among them, whichever is greater."
         )
     ),
     conditionalPanel(
@@ -312,7 +316,8 @@ server <- function(input, output) {
 
   output$text_info_upload <- renderText({
     c(
-      "Please upload a file in a tabular format such as CSV.
+      "Please upload a file in a tabular format such as CSV
+      (or check \"Use example data\" on the left).
       For GRIM and other consistency tests, it should have
       columns with specific types of summary data:
       All tests requires mean and sample size columns.
@@ -326,8 +331,16 @@ server <- function(input, output) {
 
   # Capture the user-uploaded dataframe and, if necessary, rename some columns:
   user_data <- reactive({
-    validate(need(input$input_df, "Go to \"Data upload\" first."))
-    out <- read_delim(input$input_df$datapath)
+
+    # Optionally, use the example `pigs1` data instead of user-uploaded data:
+    if (input$use_example_data_pigs5) {
+      out <- pigs5
+      # name_input_file() <- "example"
+    } else {
+      validate(need(input$input_df, "Upload data first."))
+      out <- read_delim(input$input_df$datapath)
+      # name_input_file() <- input$input_df$name
+    }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
     if (input$x != "x") {
@@ -340,15 +353,15 @@ server <- function(input, output) {
       out <- rename(out, n = !!input$n)
     }
 
-    # Convert the columns to string vectors. Also, restore decimal zeros in the
-    # input to the maximum of those already present -- or, if the user-specified
-    # number is greater, to that number:
-    if (any(names(out) == "n")) {
-      restore_zeros_df(out, !n, width = max(input$digits, max(decimal_places(out$x))))
-    } else {
-      restore_zeros_df(out, width = max(input$digits, max(decimal_places(out$x))))
-    }
+    format_after_upload(out, digits = input$digits)
+  })
 
+  name_input_file <- reactive({
+    if (input$use_example_data_pigs5) {
+      "example"
+    } else {
+      input$input_df$name
+    }
   })
 
   # Display uploaded data:
@@ -550,7 +563,7 @@ server <- function(input, output) {
   # Results by case:
   output$download_consistency_test <- downloadHandler(
     filename = function() {
-      format_download_file_name(input$input_df$name, input$name_test)
+      format_download_file_name(name_input_file(), input$name_test)
     },
     content = function(file) {
       tested_df() |>
@@ -565,7 +578,7 @@ server <- function(input, output) {
   output$download_consistency_test_summary <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        input$input_df$name, input$name_test, addendum = "_summary"
+        name_input_file(), input$name_test, addendum = "_summary"
       )
     },
     content = function(file) {
@@ -579,7 +592,9 @@ server <- function(input, output) {
   # Dispersed sequences:
   output$download_consistency_test_seq <- downloadHandler(
     filename = function() {
-      format_download_file_name(input$input_df$name, input$name_test, "_seq")
+      format_download_file_name(
+        name_input_file(), input$name_test, "_sequences"
+      )
     },
     content = function(file) {
       tested_df_seq() |>
@@ -594,7 +609,7 @@ server <- function(input, output) {
   output$download_consistency_test_audit_seq <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        input$input_df$name, input$name_test, "_seq_summary"
+        name_input_file(), input$name_test, "_sequences_summary"
       )
     },
     content = function(file) {
@@ -612,7 +627,7 @@ server <- function(input, output) {
   # Frequency table:
   output$download_duplicate_count <- downloadHandler(
     filename = function() {
-      format_download_file_name(input$input_df$name, "duplicate_count")
+      format_download_file_name(name_input_file(), "duplicate_count")
     },
     content = function(file) {
       duplicate_count_df() |>
@@ -624,7 +639,7 @@ server <- function(input, output) {
   # Summary (frequency table):
   output$download_duplicate_count_audit <- downloadHandler(
     filename = function() {
-      format_download_file_name(input$input_df$name, "duplicate_count", "_summary")
+      format_download_file_name(name_input_file(), "duplicate_count", "_summary")
     },
     content = function(file) {
       duplicate_count_df() |>
@@ -638,7 +653,7 @@ server <- function(input, output) {
   # Duplicates across columns:
   output$download_duplicate_count_colpair <- downloadHandler(
     filename = function() {
-      format_download_file_name(input$input_df$name, "duplicate_count_colpair")
+      format_download_file_name(name_input_file(), "duplicate_count_colpair")
     },
     content = function(file) {
       duplicate_count_colpair_df() |>
@@ -651,7 +666,7 @@ server <- function(input, output) {
   output$download_duplicate_count_colpair_audit <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        input$input_df$name, "duplicate_count_colpair", "_summary"
+        name_input_file(), "duplicate_count_colpair", "_summary"
       )
     },
     content = function(file) {
@@ -666,7 +681,7 @@ server <- function(input, output) {
   # Value tally at original location:
   output$download_duplicate_tally <- downloadHandler(
     filename = function() {
-      format_download_file_name(input$input_df$name, "duplicate_tally")
+      format_download_file_name(name_input_file(), "duplicate_tally")
     },
     content = function(file) {
       duplicate_tally_df() |>
@@ -678,7 +693,7 @@ server <- function(input, output) {
   output$download_duplicate_tally_audit <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        input$input_df$name, "duplicate_tally", "_summary"
+        name_input_file(), "duplicate_tally", "_summary"
       )
     },
     content = function(file) {

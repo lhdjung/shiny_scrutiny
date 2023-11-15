@@ -236,6 +236,42 @@ rename_duplicate_summary <- function(df, function_ending) {
 
 # Other -------------------------------------------------------------------
 
+# Predicate to test if all elements of a vector are whole numbers:
+is_whole_number_all <- function (x, tolerance = .Machine$double.eps^0.5) {
+  if (is.numeric(x)) {
+    all(abs(x - round(x)) < tolerance)
+  } else {
+    FALSE
+  }
+}
+
+format_after_upload <- function(df, digits) {
+  # Determine the maximum number of decimal places from among the numeric-like
+  # values in `df` (see `scrutiny::is_numeric_like()`) and `digits`:
+  width_max <- df |>
+    select(where(is_numeric_like)) |>
+    unlist(use.names = FALSE) |>
+    decimal_places() |>
+    max(digits)
+  # Select the columns that only store store whole numbers. Convert them to
+  # integer so that they are displayed better. (They don't need to be padded
+  # with trailing zeros because they presumably never had any decimal numbers to
+  # begin with.) Decimal numbers are padded to `width_max` with trailing zeros.
+  # (The anonymous function uses some code from the `?integer` documentation.)
+  mutate(df, across(
+    .cols = everything(),
+    .fns  = function(x) {
+      if (!is_numeric_like(x)) {
+        x
+      } else if (is_whole_number_all(as.numeric(x))) {
+        as.integer(x)
+      } else {
+        restore_zeros(x, width = width_max)
+      }
+    }
+  ))
+}
+
 format_download_file_name <- function(name_input_file, name_technique,
                                       addendum = NULL) {
   name_input_file |>
