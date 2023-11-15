@@ -75,7 +75,7 @@ ui <- page_navbar(
         )
       ) |>
         tooltip(
-          "Consistency of results is determined on the basis of \
+          "The consistency of summary data is determined on the basis of \
           reconstructing numbers rounded in the chosen way (or either \
           of two ways, as with the permissive default \"Up or down\")."
         ),
@@ -134,7 +134,11 @@ ui <- page_navbar(
     card(
       card_header("Data preview"),
       tableOutput("uploaded_data")
-    )
+    ) |>
+      tooltip(
+        "Your data. Rename columns in the sidebar on the left \
+        if they don't already have the names shown there."
+      )
   ),
   nav_panel(
     "Consistency testing",
@@ -194,9 +198,9 @@ ui <- page_navbar(
       ) |>
         tooltip(
           "Blue: consistent, red: inconsistent. The cross pattern emerges \
-          because values are varied up and down both axes. The grey background \
-          flags all inconsistent combinations, whether present \
-          in the data or not."
+          because values are varied up and down along both axes.
+          The grey background flags all inconsistent combinations, \
+          whether present in the data or not."
         )
     ),
     # Further analyses -- one wide card below:
@@ -221,32 +225,63 @@ ui <- page_navbar(
       card_header("Frequency table"),
       tableOutput("output_duplicate_count"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip(
+        "Ranked by the duplicate count (or frequency). Locations are
+        the names of the columns in your data where a given value appears."
+      ),
     card(
       card_header("Summary (frequency table)"),
       tableOutput("output_duplicate_count_summary"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip(
+        "Summary statistics of two numeric columns from the frequency table."
+      ),
     card(
       card_header("Duplicates across columns"),
       tableOutput("output_duplicate_count_colpair"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip(
+        "This checks each pair of columns in your data for duplicates:
+        values that appear in both columns. Shown on the right are
+        the proportion of values in the original column 1 that are also
+        found in column 2, and vice versa. These two \"Proportion\" columns
+        are equal unless some values are missing. The same is true
+        of the \"Total number\" columns in the center;
+        they also exclude missing values."
+      ),
     card(
       card_header("Summary (duplicates across columns)"),
       tableOutput("output_duplicate_count_colpair_summary"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip(
+        "Summary statistics of all columns from the cross-column table
+        (except for those that list the original columns from your data)."
+      ),
     card(
       card_header("Value tally at original location"),
       tableOutput("output_duplicate_tally"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip(
+        "Next to each column from your data, an \"_n\" column shows
+        how often its values appear in the data overall.
+        Note that the frequency of each value appears a number
+        of times equal to the frequency itself."
+      ),
     card(
       card_header("Summary (value tally at original location)"),
       tableOutput("output_duplicate_tally_summary"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip(
+        "Summary statistics of the \"_n\" columns.
+        Because the frequencies appear as often as their own value says,
+        these statistics should be interpreted with caution."
+      ),
     # card(
     #   card_header("Autocorrelation results"),
     #   tableOutput("output_acf_df"),
@@ -256,7 +291,11 @@ ui <- page_navbar(
       card_header("Autocorrelation plot"),
       plotOutput("output_acf_plot"),
       full_screen = TRUE
-    )
+    ) |>
+      tooltip(
+        "Autocorrelation function (ACF) plot. The dashed blue line
+        is the confidence interval."
+      )
   ),
   nav_panel(
     "About",
@@ -271,13 +310,19 @@ ui <- page_navbar(
 
 server <- function(input, output) {
 
-  output$text_info_upload <- renderText({c(
-    "Please upload a CSV file or a file in another tabular format.\n",
-    "For GRIM and other consistency tests, you may need to specify
-    the columns to be tested (see sidebar left). They will be shown
-    renamed below. Duplicate analysis doesn't require doing so.
-    Hover over a panel for information about it."
-  )})
+  output$text_info_upload <- renderText({
+    c(
+      "Please upload a file in a tabular format such as CSV.
+      For GRIM and other consistency tests, it should have
+      columns with specific types of summary data:
+      All tests requires mean and sample size columns.
+      GRIMMER and DEBIT additionally require a standard deviation
+      column. You may need to specify the columns (see sidebar left).
+      They will be shown renamed below. Duplicate analysis doesn't
+      require any specific columns.
+      Hover over a panel for information about it."
+    )
+  })
 
   # Capture the user-uploaded dataframe and, if necessary, rename some columns:
   user_data <- reactive({
