@@ -36,7 +36,9 @@ ui <- page_navbar(
       textInput("x", "Mean / percentage column:", "x"),
       textInput("sd", "Standard deviation column:", "sd"),
       textInput("n", "Sample size column:", "n"),
-      numericInput("digits", label = "Restore decimal zeros:", value = 0L, min = 0)
+      numericInput(
+        "digits", label = "Restore decimal zeros:", value = 0L, min = 0
+      )
     ),
     conditionalPanel(
       "input.nav === 'Consistency testing'",
@@ -48,6 +50,40 @@ ui <- page_navbar(
       selectInput(
         "mean_percent", label = "Mean or percentage?",
         choices = c("Mean", "Percentage")
+      ),
+      # Number of items:
+      conditionalPanel(
+        "input.mean_percent === 'Mean'",
+        numericInput(
+          "items", label = "Number of scale items", value = 1, min = 1, step = 1
+        )
+      ),
+      # # Item column merging:
+      # conditionalPanel(
+      #   "input.merge_items != '' && (input.name_test === 'GRIM' || input.name_test === 'GRIMMER')",
+      #   checkboxInput("merge_items", label = "Merge items column", value = TRUE)
+      # ),
+      # Rounding:
+      selectInput(
+        "rounding", label = "Rounding method:",
+        choices = c(
+          "Up or down", "Up", "Down", "Up from...", "Down from...",
+          "Ceiling or floor", "Ceiling", "Floor", "Truncate", "Anti-truncate"
+        )
+      ),
+      conditionalPanel(
+        "input.rounding === 'Up from...'",
+        numericInput(
+          "rounding_up_from", label = "Round up from:", value = 5,
+          min = 0, max = 9, step = 1
+        )
+      ),
+      conditionalPanel(
+        "input.rounding === 'Down from...'",
+        numericInput(
+          "rounding_down_from", label = "Round down from:", value = 5,
+          min = 0, max = 9, step = 1
+        )
       ),
       numericInput(
         "plot_size_text", label = "Plot text size:", value = 14, min = 1
@@ -63,8 +99,8 @@ ui <- page_navbar(
         "plot_size_text_acf", label = "Plot text size:", value = 16, min = 1
       ),
       numericInput(
-        "acf_ci", label = "Confidence interval (autocorrelation):", value = 0.95,
-        min = 0, max = 1, step = 0.05
+        "acf_ci", label = "Confidence interval (autocorrelation):",
+        value = 0.95, min = 0, max = 1, step = 0.05
       ),
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
       downloadButton("download_duplicate_count_audit", "Download summary (frequency table)"),
@@ -186,7 +222,7 @@ ui <- page_navbar(
   ),
   nav_panel(
     "About",
-    textOutput("about_text")
+    uiOutput("about_text")
   ),
   fillable = FALSE
 )
@@ -237,6 +273,19 @@ server <- function(input, output) {
     user_data()
   })
 
+  rounding_method <- reactive({
+    select_rounding_method(input$rounding)
+  })
+
+  rounding_threshold <- reactive({
+    switch(
+      rounding_method(),
+      "up_from" = input$rounding_up_from,
+      "down_from" = input$rounding_down_from,
+      5
+    )
+  })
+
   # Basic analyses:
   tested_df <- reactive({
     if (input$name_test == "DEBIT") {
@@ -249,9 +298,19 @@ server <- function(input, output) {
     # Test for consistency using a mapping function, then return the data frame:
     out <- switch(
       input$name_test,
-      "GRIM"    = grim_map(user_data(), percent = input$mean_percent == "Percentage"),
-      "GRIMMER" = grimmer_map(user_data()),
-      "DEBIT"   = debit_map(user_data())
+      "GRIM" = grim_map(
+        user_data(), items = input$items,
+        percent = input$mean_percent == "Percentage",
+        rounding = rounding_method(), threshold = rounding_threshold()
+      ),
+      "GRIMMER" = grimmer_map(
+        user_data(), items = input$items,
+        rounding = rounding_method(), threshold = rounding_threshold()
+      ),
+      "DEBIT" = debit_map(
+        user_data(), rounding = rounding_method(),
+        threshold = rounding_threshold()
+      )
     )
     # Many consistency tests have a key argument / column corresponding to the
     # sample size ("n"). It should be integer because, as a double, the app
@@ -289,15 +348,27 @@ server <- function(input, output) {
   tested_df_seq <- reactive({
     switch(
       input$name_test,
-      "GRIM"    = grim_map_seq(user_data(), percent = input$mean_percent == "Percentage"),
-      "GRIMMER" = grimmer_map_seq(user_data()),
-      "DEBIT"   = debit_map_seq(user_data())
+      "GRIM" = grim_map_seq(
+        user_data(), items = input$items,
+        percent = input$mean_percent == "Percentage",
+        rounding = rounding_method(), threshold = rounding_threshold()
+      ),
+      "GRIMMER" = grimmer_map_seq(
+        user_data(), items = input$items,
+        rounding = rounding_method(), threshold = rounding_threshold()
+      ),
+      "DEBIT" = debit_map_seq(
+        user_data(),
+        rounding = rounding_method(), threshold = rounding_threshold()
+      )
     )
   })
 
   output$output_df_seq <- renderTable({
     tested_df_seq() |>
-      rename_after_testing_seq(input$name_test, percent = input$mean_percent == "Percentage")
+      rename_after_testing_seq(
+        input$name_test, percent = input$mean_percent == "Percentage"
+      )
   })
 
   output$output_df_audit_seq <- renderTable({
@@ -538,27 +609,32 @@ server <- function(input, output) {
 
 
   # TODO: FIX THIS
-  # output$about_text <- renderUI({
-  #   paste(
-  #     "This webapp was made by Lukas Jung in R, using shiny with bslib. \
-  #     It applies tools from the scrutiny package for error detection \
-  #     in science.
-  #     - For more about GRIM, see",
-  #     a("Brown and Heathers 2017", href="https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
-  #     "- For more about GRIMMER, see ",
-  #     a("Allard 2018", href="https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
-  #   )
-  # })
-
-  # Like this?
-  url_grim <- a("Brown and Heathers 2017", href="https://journals.sagepub.com/doi/abs/10.1177/1948550616673876")
-  url_grimmer <- a("Allard 2018", href="https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/")
-  url_debit <- a("Heathers and Brown 2019", href="https://osf.io/5vb3u")
 
   output$about_text <- renderUI({
-    htmltools::tagList("URL link: ", url_grimmer)
+    htmltools::tagList(
+      "This webapp was made by",
+      a("Lukas Jung", href = "https://github.com/lhdjung"),
+      "in R, using shiny with bslib. It applies tools from the",
+      a("scrutiny", href = "https://lhdjung.github.io/scrutiny/"),
+      "package for error detection in science. The",
+      a("forecast", href = "https://pkg.robjhyndman.com/forecast/index.html"),
+      "package is used to create the ACF plot. See",
+      a("Brown and Heathers 2017", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
+      "on GRIM,",
+      a("Allard 2018", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
+      "on GRIMMER, and",
+      a("Heathers and Brown 2019", href = "https://osf.io/5vb3u"),
+      "on DEBIT."
+    )
   })
 
+  # # Like this?
+  # url_lukas_github <- a("Lukas Jung", href = "https://github.com/lhdjung")
+  # url_scrutiny <- a("scrutiny", href = "https://lhdjung.github.io/scrutiny/")
+  # url_forecast <- a("forecast", href = "https://pkg.robjhyndman.com/forecast/index.html")
+  # url_grim <- a("Brown and Heathers 2017", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876")
+  # url_grimmer <- a("Allard 2018", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/")
+  # url_debit <- a("Heathers and Brown 2019", href = "https://osf.io/5vb3u")
 }
 
 

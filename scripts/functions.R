@@ -1,6 +1,22 @@
 
 # Consistency testing -----------------------------------------------------
 
+select_rounding_method <- function(rounding) {
+  switch(
+    rounding,
+    "Up or down" = "up_or_down",
+    "Up" = "up",
+    "Down" = "down",
+    "Up from..." = "up_from",
+    "Down from..." = "down_from",
+    "Ceiling or floor" = "ceiling_or_floor",
+    "Ceiling" = "ceiling",
+    "Floor" = "floor",
+    "Truncate" = "trunc",
+    "Anti-truncate" = "anti_trunc"
+  )
+}
+
 rename_after_testing <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
   if (name_test == "GRIM") {
@@ -70,17 +86,19 @@ rename_after_audit <- function(df, name_test) {
 
 
 # This function MUST contain renaming instructions for all key variables of all
-# consistency tests currently implemented! All column names are set to title
-# case first, which already takes care of `n` --> `N`, but also of `consistency`
+# consistency tests currently supported! However, this doesn't mean they
+# necessarily need to contain explicit and specific instructions as key-value
+# pairs, such as `"X" = "Mean"`. All column names are set to title case first,
+# which already takes care of `n` --> `N`, but also of `consistency`
 # --> `Consistency` (not a key variable, but convenient to cover here).
 rename_key_vars <- function(name) {
   name <- str_to_title(name)
-    switch(
-      name,
-      "X"  = "Mean",
-      "Sd" = "SD",
-      name
-    )
+  switch(
+    name,
+    "X"  = "Mean",
+    "Sd" = "SD",
+    name
+  )
 }
 
 
@@ -154,7 +172,7 @@ rename_after_audit_seq <- function(df) {
 
 plot_test_results <- function(df, name_test, size_text) {
   if (any(name_test == c("GRIM", "GRIMMER"))) {
-    grim_plot(df) +
+    grim_plot(df, rounding = rounding) +
       theme(text = element_text(size = size_text))
   } else if (name_test == "DEBIT") {
     debit_plot(df, label_size = size_text * 0.285) +
@@ -196,6 +214,7 @@ rename_duplicate_count_colpair_df <- function(df) {
     ))
 }
 
+# # Renaming the columns of `duplicate_tally()`'s output is not necessary:
 # rename_duplicate_tally_df <- function(df) {
 #   is_even <- function(x) x %% 2 == 0
 #   df[is_even(seq_len(ncol(df)))]
