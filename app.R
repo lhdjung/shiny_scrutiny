@@ -14,17 +14,6 @@ source("scripts/functions.R")
 
 # Define UI ---------------------------------------------------------------
 
-# # Prepare optional cards for duplicate analysis:
-# cards_duplicate_analysis <- list(
-#   card(
-#     card_header("Frequency table"),
-#     tableOutput("output_duplicate_count")
-#   ),
-#   card(
-#     card_header("")
-#   )
-# )
-
 ui <- page_navbar(
   title = "Scrutiny webapp (beta)",
   id = "nav",
@@ -38,25 +27,39 @@ ui <- page_navbar(
       textInput("n", "Sample size column:", "n"),
       numericInput(
         "digits", label = "Restore decimal zeros:", value = 0L, min = 0
-      )
+      ) |>
+        tooltip(
+          "Decimal numbers are padded with zeros to match this number \
+          or the greatest number of decimal places from among them, \
+          whichever is greater."
+        )
     ),
     conditionalPanel(
       "input.nav === 'Consistency testing'",
       selectInput(
         "name_test", "Consistency test:",
         choices = c("GRIM", "GRIMMER", "DEBIT")
-      ),
+      ) |>
+        tooltip("See \"About\" for more information."),
       # Mean / percentage selection:
       selectInput(
         "mean_percent", label = "Mean or percentage?",
         choices = c("Mean", "Percentage")
-      ),
+      ) |>
+        tooltip(
+          "If the \"x\" column in your data contains percentages, \
+          they will be deflated (that is, divided by 100) before testing."
+        ),
       # Number of items:
       conditionalPanel(
         "input.mean_percent === 'Mean'",
         numericInput(
           "items", label = "Number of scale items", value = 1, min = 1, step = 1
-        )
+        ) |>
+          tooltip(
+            "If the scale from which the means are derived is composed \
+            of multiple items, enter the number of those items here."
+          )
       ),
       # # Item column merging:
       # conditionalPanel(
@@ -70,7 +73,12 @@ ui <- page_navbar(
           "Up or down", "Up", "Down", "Up from...", "Down from...",
           "Ceiling or floor", "Ceiling", "Floor", "Truncate", "Anti-truncate"
         )
-      ),
+      ) |>
+        tooltip(
+          "Consistency of results is determined on the basis of \
+          reconstructing numbers rounded in the chosen way (or either \
+          of two ways, as with the permissive default \"Up or down\")."
+        ),
       conditionalPanel(
         "input.rounding === 'Up from...'",
         numericInput(
@@ -101,7 +109,11 @@ ui <- page_navbar(
       numericInput(
         "acf_ci", label = "Confidence interval (autocorrelation):",
         value = 0.95, min = 0, max = 1, step = 0.05
-      ),
+      ) |>
+        tooltip(
+          "Coverage probability for the autocorrelation plot's \
+          confidence interval"
+        ),
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
       downloadButton("download_duplicate_count_audit", "Download summary (frequency table)"),
       downloadButton("download_duplicate_count_colpair", "Download duplicates across columns"),
@@ -135,14 +147,19 @@ ui <- page_navbar(
         # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
-      ),
+      ) |>
+        tooltip("Your data, tested for consistency."),
       card(
         card_header("Visualization"),
         plotOutput("output_plot"),
         # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
-      ),
+      ) |>
+        tooltip(
+          "Blue: consistent, red: inconsistent. The grey background flags \
+          all inconsistent combinations, whether present in the data or not."
+        )
     ),
     # Basic analyses -- one wide card below:
     card(
@@ -150,7 +167,8 @@ ui <- page_navbar(
       tableOutput("output_df_audit"),
       # card_body(max_height = "10px"),
       full_screen = TRUE
-    ),
+    ) |>
+      tooltip("Simple summaries of testing your data."),
     # Further analyses -- two long cards side by side:
     layout_column_wrap(
       0.5,
@@ -160,14 +178,26 @@ ui <- page_navbar(
         # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
-      ),
+      ) |>
+        tooltip(
+          "Checking the numeric neighborhood of inconsistent value sets \
+          for consistent ones. Variables to the left of \"consistency\" \
+          are marginally varied up and down, holding the other one(s) \
+          constant each time."
+        ),
       card(
         card_header("Visualization (dispersed sequences)"),
         plotOutput("output_plot_seq"),
         # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
-      ),
+      ) |>
+        tooltip(
+          "Blue: consistent, red: inconsistent. The cross pattern emerges \
+          because values are varied up and down both axes. The grey background \
+          flags all inconsistent combinations, whether present \
+          in the data or not."
+        )
     ),
     # Further analyses -- one wide card below:
     card(
@@ -175,7 +205,15 @@ ui <- page_navbar(
       tableOutput("output_df_audit_seq"),
       # card_body(max_height = "10px"),
       full_screen = TRUE
-    )
+    ) |>
+      tooltip(
+        "A \"hit\" is a consistent value set found by varying the \
+        inconsistent numbers above. \"Hits for\" a variable \
+        are those found by varying that variable. \"Least step difference\" \
+        is the minimum number of steps between the reported values \
+        of a variable and the nearby consistent ones. \
+        They are split up by the direction of variation: upward and downward."
+      )
   ),
   nav_panel(
     "Duplicate analysis",
@@ -224,7 +262,7 @@ ui <- page_navbar(
     "About",
     uiOutput("about_text")
   ),
-  fillable = FALSE
+  fillable = FALSE, theme = bs_theme(version = 5)
 )
 
 
@@ -237,8 +275,8 @@ server <- function(input, output) {
     "Please upload a CSV file or a file in another tabular format.\n",
     "For GRIM and other consistency tests, you may need to specify
     the columns to be tested (see sidebar left). They will be shown
-    renamed below.\n",
-    "Duplicate analysis doesn't require doing so."
+    renamed below. Duplicate analysis doesn't require doing so.
+    Hover over a panel for information about it."
   )})
 
   # Capture the user-uploaded dataframe and, if necessary, rename some columns:
@@ -607,9 +645,6 @@ server <- function(input, output) {
     }
   )
 
-
-  # TODO: FIX THIS
-
   output$about_text <- renderUI({
     htmltools::tagList(
       "This webapp was made by",
@@ -627,19 +662,9 @@ server <- function(input, output) {
       "on DEBIT."
     )
   })
-
-  # # Like this?
-  # url_lukas_github <- a("Lukas Jung", href = "https://github.com/lhdjung")
-  # url_scrutiny <- a("scrutiny", href = "https://lhdjung.github.io/scrutiny/")
-  # url_forecast <- a("forecast", href = "https://pkg.robjhyndman.com/forecast/index.html")
-  # url_grim <- a("Brown and Heathers 2017", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876")
-  # url_grimmer <- a("Allard 2018", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/")
-  # url_debit <- a("Heathers and Brown 2019", href = "https://osf.io/5vb3u")
 }
-
 
 
 # Run the app -------------------------------------------------------------
 
 shinyApp(ui = ui, server = server)
-
