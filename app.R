@@ -47,14 +47,17 @@ ui <- page_navbar(
       ) |>
         tooltip("See \"About\" for more information."),
       # Mean / percentage selection:
-      selectInput(
-        "mean_percent", label = "Mean or percentage?",
-        choices = c("Mean", "Percentage")
-      ) |>
-        tooltip(
-          "If the \"x\" column in your data contains percentages, \
-          they will be deflated (that is, divided by 100) before testing."
-        ),
+      conditionalPanel(
+        "input.name_test === 'GRIM'",
+        selectInput(
+          "mean_percent", label = "Mean or percentage?",
+          choices = c("Mean", "Percentage")
+        ) |>
+          tooltip(
+            "For GRIM, if the \"x\" column in your data contains percentages, \
+            they will be deflated (that is, divided by 100) before testing."
+          )
+      ),
       # Number of items:
       conditionalPanel(
         "input.mean_percent === 'Mean'",
