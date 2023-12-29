@@ -297,32 +297,36 @@ rename_duplicate_summary <- function(df, function_ending) {
 
 # Predicate to test if all elements of a vector are whole numbers:
 is_whole_number_all <- function (x, tolerance = .Machine$double.eps^0.5) {
-  if (is.numeric(x)) {
-    all(abs(x - round(x)) < tolerance)
-  } else {
-    FALSE
-  }
+  is.numeric(x) && all(abs(x - round(x)) < tolerance)
+  # if (is.numeric(x)) {
+  #   all(abs(x - round(x)) < tolerance)
+  # } else {
+  #   FALSE
+  # }
 }
 
 format_after_upload <- function(df, digits) {
+  # Which columns can be coerced to numeric? The key question is whether
+  # coercion generates new `NA`s, which happens whenever a string can't be
+  # parsed as a number. See `scrutiny::is_numeric_like()`.
+  indices_numeric_like_cols <- which(vapply(
+    df, is_numeric_like, logical(1L), USE.NAMES = FALSE
+  ))
   # Determine the maximum number of decimal places from among the numeric-like
   # values in `df` (see `scrutiny::is_numeric_like()`) and `digits`:
-  width_max <- df |>
-    select(where(is_numeric_like)) |>
+  width_max <- df[indices_numeric_like_cols] |>
     unlist(use.names = FALSE) |>
     decimal_places() |>
     max(digits)
-  # Select the columns that only store store whole numbers. Convert them to
-  # integer so that they are displayed better. (They don't need to be padded
-  # with trailing zeros because they presumably never had any decimal numbers to
-  # begin with.) Decimal numbers are padded to `width_max` with trailing zeros.
-  # (The anonymous function uses some code from the `?integer` documentation.)
+  # Select the columns that only store whole numbers. Convert them to integer so
+  # that they are displayed better. (They don't need to be padded with trailing
+  # zeros because they presumably never had any decimal numbers to begin with.)
+  # Decimal numbers are padded to `width_max` with trailing zeros. Disclaimer:
+  # The anonymous function uses some code from the `?integer` documentation.
   mutate(df, across(
-    .cols = everything(),
+    .cols = indices_numeric_like_cols,
     .fns  = function(x) {
-      if (!is_numeric_like(x)) {
-        x
-      } else if (is_whole_number_all(as.numeric(x))) {
+      if (is_whole_number_all(as.numeric(x))) {
         as.integer(x)
       } else {
         restore_zeros(x, width = width_max)
