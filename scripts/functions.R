@@ -17,6 +17,18 @@ select_rounding_method <- function(rounding) {
   )
 }
 
+parse_dispersion <- function(string) {
+  string <- paste0("c(", string, ")")
+  tryCatch(
+    eval(parse_expr(string)),
+    error = function(cond) {
+      stop("Dispersion sequence couldn't be parsed.")
+    }
+  )
+}
+
+# The if-tree can't be replaced by `switch()` here because this wouldn't work
+# with the assignment to `mean_or_percent`.
 rename_after_testing <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
   if (name_test == "GRIM") {
@@ -47,43 +59,39 @@ rename_after_testing <- function(df, name_test, percent) {
   }
 }
 
-
 rename_after_audit <- function(df, name_test) {
-  if (name_test == "GRIM") {
-    rename(
-      df,
-      `Inconsistent cases` = incons_cases,
-      `All cases` = all_cases,
-      `Inconsistency rate` = incons_rate,
-      `Mean GRIM ratio` = mean_grim_ratio,
-      `Inconsistencies / ratio` = incons_to_ratio,
-      `Testable cases` = testable_cases,
-      `Testable cases rate` = testable_rate
+  `names<-`(
+    df, switch(
+      name_test,
+      "GRIM" = c(
+        "Inconsistent cases",
+        "All cases",
+        "Inconsistency rate",
+        "Mean GRIM ratio",
+        "Inconsistencies / ratio",
+        "Testable cases",
+        "Testable cases rate"
+      ),
+      "GRIMMER" = c(
+        "Inconsistent cases",
+        "All cases",
+        "Inconsistency rate",
+        "Failed GRIM",
+        "Failed GRIMMER (test 1)",
+        "Failed GRIMMER (test 2)",
+        "Failed GRIMMER (test 3)"
+      ),
+      "DEBIT" = c(
+        "Inconsistent cases",
+        "All cases",
+        "Inconsistency rate",
+        "Mean of means",
+        "Mean of SDs",
+        "Distinct sample sizes"
+      )
     )
-  } else if (name_test == "GRIMMER") {
-    rename(
-      df,
-      `Inconsistent cases` = incons_cases,
-      `All cases` = all_cases,
-      `Inconsistency rate` = incons_rate,
-      `Failed GRIM` = fail_grim,
-      `Failed GRIMMER (test 1)` = fail_test1,
-      `Failed GRIMMER (test 2)` = fail_test2,
-      `Failed GRIMMER (test 3)` = fail_test3
-    )
-  } else if (name_test == "DEBIT") {
-    rename(
-      df,
-      `Inconsistent cases` = incons_cases,
-      `All cases` = all_cases,
-      `Inconsistency rate` = incons_rate,
-      `Mean of means` = mean_x,
-      `Mean of SDs` = mean_sd,
-      `Distinct sample sizes` = distinct_n
-    )
-  }
+  )
 }
-
 
 # This function MUST contain renaming instructions for all key variables of all
 # consistency tests currently supported! However, this doesn't mean they
@@ -101,7 +109,7 @@ rename_key_vars <- function(name) {
   )
 }
 
-
+# The if-tree is necessary here; see the comment on `rename_after_testing()`.
 rename_after_testing_seq <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
   if (name_test == "GRIM") {
@@ -141,33 +149,84 @@ rename_after_testing_seq <- function(df, name_test, percent) {
 }
 
 
-select_key_cols <- function(df) {
-  df[1L:(match("consistency", names(df)) - 1L)]
-}
-
-
-rename_after_audit_seq <- function(df) {
-  regex_key_var_names <- paste0(
-    "(?<=(^(hits_|diff_)))(",
-    paste0(names(select_key_cols(df)), collapse = "|"),
-    ")(?=(_up|_down|))"
+rename_after_audit_seq <- function(df, name_test) {
+  `names<-`(
+    df,
+    switch(
+      name_test,
+      "GRIM" = c(
+        "Mean", "N", "Consistency", "Total number of hits", "Hits for Mean",
+        "Hits for N", "Least step difference in Mean",
+        "Least step difference in Mean (upward)",
+        "Least step difference in Mean (downward)", "Least step difference in N",
+        "Least step difference in N (upward)",
+        "Least step difference in N (downward)"
+      ),
+      "GRIMMER" = c(
+        "Mean", "SD", "N", "Consistency", "Total number of hits", "Hits for Mean",
+        "Hits for SD", "Hits for N", "Least step difference in Mean",
+        "Least step difference in Mean (upward)",
+        "Least step difference in Mean (downward)", "Least step difference in SD",
+        "Least step difference in SD (upward)",
+        "Least step difference in SD (downward)", "Least step difference in N",
+        "Least step difference in N (upward)",
+        "Least step difference in N (downward)"
+      ),
+      "DEBIT" = c(
+        "Mean", "SD", "N", "Consistency", "Total number of hits", "Hits for Mean",
+        "Hits for SD", "Hits for N", "Least step difference in Mean",
+        "Least step difference in Mean (upward)",
+        "Least step difference in Mean (downward)", "Least step difference in SD",
+        "Least step difference in SD (upward)",
+        "Least step difference in SD (downward)", "Least step difference in N",
+        "Least step difference in N (upward)",
+        "Least step difference in N (downward)"
+      )
+    )
   )
-  names_all <- names(df)
-  for (i in seq_along(names_all)) {
-    if (str_starts(names_all[i], "(hits_|diff_)")) {
-      names_all[i] <- names_all[i] |>
-        str_replace(regex_key_var_names, rename_key_vars) |>
-        str_replace("^hits_", "Hits for ") |>
-        str_replace("^diff_", "Least step difference in ") |>
-        str_replace("_up$", " (upward)") |>
-        str_replace("_down$", " (downward)")
-    } else {
-      names_all[i] <- rename_key_vars(names_all[i])
-    }
-  }
-  names_all[names_all == "Hits for total"] <- "Total number of hits"
-  `names<-`(df, value = names_all)
 }
+
+
+
+# Use the outcommented function `rename_after_audit_seq_generate_code()` below
+# like in the next block, for example with GRIMMER, to generate the code that
+# should go into `rename_after_audit_seq()` as output printed into the console:
+
+# names_grimmer <- pigs5 |>
+#   grimmer_map_seq() |>
+#   audit_seq() |>
+#   rename_after_audit_seq() |>
+#   colnames() |>
+#   constructive::construct()
+
+
+# select_key_cols <- function(df) {
+#   df[1L:(match("consistency", names(df)) - 1L)]
+# }
+#
+#
+# rename_after_audit_seq_generate_code <- function(df) {
+#   regex_key_var_names <- paste0(
+#     "(?<=(^(hits_|diff_)))(",
+#     paste0(names(select_key_cols(df)), collapse = "|"),
+#     ")(?=(_up|_down|))"
+#   )
+#   names_all <- names(df)
+#   for (i in seq_along(names_all)) {
+#     if (str_starts(names_all[i], "(hits_|diff_)")) {
+#       names_all[i] <- names_all[i] |>
+#         str_replace(regex_key_var_names, rename_key_vars) |>
+#         str_replace("^hits_", "Hits for ") |>
+#         str_replace("^diff_", "Least step difference in ") |>
+#         str_replace("_up$", " (upward)") |>
+#         str_replace("_down$", " (downward)")
+#     } else {
+#       names_all[i] <- rename_key_vars(names_all[i])
+#     }
+#   }
+#   names_all[names_all == "Hits for total"] <- "Total number of hits"
+#   `names<-`(df, value = names_all)
+# }
 
 
 plot_test_results <- function(df, name_test, size_text) {

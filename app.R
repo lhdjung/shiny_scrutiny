@@ -1,5 +1,6 @@
 library(shiny)
 library(bslib)
+library(rlang)
 library(ggplot2)
 library(dplyr)
 library(corrr)
@@ -101,6 +102,14 @@ ui <- page_navbar(
           min = 0, max = 9, step = 1
         )
       ),
+      textInput("dispersion", label = "Dispersion:", value = "1:5") |>
+        tooltip(
+          "How far should the dispersed sequences be spread out?
+          You can define a sequence of steps: for example, the default
+          \"1:5\" goes five steps up and down from the reported values.
+          Alternatively, choose specific steps separated by commas,
+          like \"2, 5, 7\"."
+        ),
       numericInput(
         "plot_size_text", label = "Plot text size:", value = 14, min = 1
       ),
@@ -152,7 +161,7 @@ ui <- page_navbar(
     "Consistency testing",
     # Basic analyses -- two long cards side by side:
     layout_column_wrap(
-      0.5,
+      width = 0.5,
       card(
         card_header("Results by case"),
         tableOutput("output_df"),
@@ -183,7 +192,7 @@ ui <- page_navbar(
       tooltip("Simple summaries of testing your data."),
     # Further analyses -- two long cards side by side:
     layout_column_wrap(
-      0.5,
+      width = 0.5,
       card(
         card_header("Dispersed sequences"),
         tableOutput("output_df_seq"),
@@ -244,7 +253,8 @@ ui <- page_navbar(
       full_screen = TRUE
     ) |>
       tooltip(
-        "Summary statistics of two numeric columns from the frequency table."
+        "Summary statistics of the two numeric columns
+        from the frequency table."
       ),
     card(
       card_header("Duplicates across columns"),
@@ -324,7 +334,7 @@ server <- function(input, output) {
       (or check \"Use example data\" on the left).
       For GRIM and other consistency tests, it should have
       columns with specific types of summary data:
-      All tests requires mean and sample size columns.
+      All tests require mean and sample size columns.
       GRIMMER and DEBIT additionally require a standard deviation
       column. You may need to specify the columns (see sidebar left).
       They will be shown renamed below. Duplicate analysis doesn't
@@ -336,14 +346,12 @@ server <- function(input, output) {
   # Capture the user-uploaded dataframe and, if necessary, rename some columns:
   user_data <- reactive({
 
-    # Optionally, use the example `pigs1` data instead of user-uploaded data:
+    # Optionally, use the example `pigs5` data instead of user-uploaded data:
     if (input$use_example_data_pigs5) {
       out <- pigs5
-      # name_input_file() <- "example"
     } else {
       validate(need(input$input_df, "Upload data first."))
       out <- read_delim(input$input_df$datapath)
-      # name_input_file() <- input$input_df$name
     }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
@@ -449,16 +457,18 @@ server <- function(input, output) {
     switch(
       input$name_test,
       "GRIM" = grim_map_seq(
-        user_data(), items = input$items,
+        user_data(), dispersion = parse_dispersion(input$dispersion),
+        items = input$items,
         percent = input$mean_percent == "Percentage",
         rounding = rounding_method(), threshold = rounding_threshold()
       ),
       "GRIMMER" = grimmer_map_seq(
-        user_data(), items = input$items,
+        user_data(), dispersion = parse_dispersion(input$dispersion),
+        items = input$items,
         rounding = rounding_method(), threshold = rounding_threshold()
       ),
       "DEBIT" = debit_map_seq(
-        user_data(),
+        user_data(), dispersion = parse_dispersion(input$dispersion),
         rounding = rounding_method(), threshold = rounding_threshold()
       )
     )
@@ -478,7 +488,7 @@ server <- function(input, output) {
         .cols = starts_with("hits") | starts_with("diff"),
         .fns  = as.integer
       )) |>
-      rename_after_audit_seq()
+      rename_after_audit_seq(input$name_test)
   })
 
   output$output_plot_seq <- renderPlot(
@@ -619,7 +629,7 @@ server <- function(input, output) {
     content = function(file) {
       tested_df_seq() |>
         audit_seq() |>
-        rename_after_audit_seq() |>
+        rename_after_audit_seq(input$name_test) |>
         clean_names() |>
         write_csv(file)
     }
