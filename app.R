@@ -146,7 +146,7 @@ ui <- page_navbar(
     "Data upload",
     card(
       card_header("Information"),
-      textOutput("text_info_upload")
+      uiOutput("text_info_upload")
     ),
     card(
       card_header("Data preview"),
@@ -317,8 +317,13 @@ ui <- page_navbar(
   ),
   nav_panel(
     "About",
-    uiOutput("about_text")
+    uiOutput("text_about")
   ),
+  nav_spacer(),
+  nav_item(img(
+    src = "uni_bern_funding.drawio.svg", alt = "Funded by University of Bern",
+    height = 40
+  )),
   fillable = FALSE, theme = bs_theme(version = 5)
 )
 
@@ -328,18 +333,20 @@ ui <- page_navbar(
 
 server <- function(input, output) {
 
-  output$text_info_upload <- renderText({
-    c(
+  output$text_info_upload <- renderUI({
+    htmltools::tagList(
       "Please upload a file in a tabular format such as CSV
-      (or check \"Use example data\" on the left).
-      For GRIM and other consistency tests, it should have
+      (or check \"Use example data\" on the left).",
+      br(), br(),  # Newlines
+      "For GRIM and other consistency tests, it should have
       columns with specific types of summary data:
       All tests require mean and sample size columns.
       GRIMMER and DEBIT additionally require a standard deviation
       column. You may need to specify the columns (see sidebar left).
-      They will be shown renamed below. Duplicate analysis doesn't
-      require any specific columns.
-      Hover over a panel for information about it."
+      They will be shown renamed below. Duplicate analysis
+      doesn't require any specific columns.",
+      br(), br(),  # Newlines
+      "Hover over a panel for information about it."
     )
   })
 
@@ -719,21 +726,25 @@ server <- function(input, output) {
     }
   )
 
-  output$about_text <- renderUI({
+  output$text_about <- renderUI({
     htmltools::tagList(
       "This webapp was made by",
       a("Lukas Jung", href = "https://github.com/lhdjung"),
-      "in R, using shiny with bslib. It applies tools from the",
+      "in R, using shiny with bslib.",
+      br(), br(),  # Newlines
+      "It applies tools from the",
       a("scrutiny", href = "https://lhdjung.github.io/scrutiny/"),
       "package for error detection in science. The",
       a("forecast", href = "https://pkg.robjhyndman.com/forecast/index.html"),
       "package is used to create the ACF plot. See",
-      a("Brown and Heathers 2017", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
+      a("Brown and Heathers (2017)", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
       "on GRIM,",
-      a("Allard 2018", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
+      a("Allard (2018)", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
       "on GRIMMER, and",
-      a("Heathers and Brown 2019", href = "https://osf.io/5vb3u"),
-      "on DEBIT."
+      a("Heathers and Brown (2019)", href = "https://osf.io/5vb3u"),
+      "on DEBIT.",
+      br(), br(),  # Newlines
+      p("Proudly supported by the University of Bern.")
     )
   })
 }
