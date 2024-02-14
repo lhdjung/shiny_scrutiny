@@ -22,9 +22,18 @@ parse_dispersion <- function(string) {
   tryCatch(
     eval(parse_expr(string)),
     error = function(cond) {
-      stop("Dispersion sequence couldn't be parsed.")
+      stop(safeError("Dispersion sequence couldn't be parsed."))
     }
   )
+}
+
+check_dispersion_audit_seq <- function(dispersion) {
+  if (!is_seq_ascending(parse_dispersion(dispersion), test_linear = TRUE)) {
+    stop(safeError(paste(
+      "Summaries of dispersed sequences are only supported",
+      "if \"Dispersion\" is a linearly increasing sequence."
+    )))
+  }
 }
 
 # The if-tree can't be replaced by `switch()` here because this wouldn't work
@@ -295,14 +304,10 @@ rename_duplicate_summary <- function(df, function_ending) {
 
 # Other -------------------------------------------------------------------
 
-# Predicate to test if all elements of a vector are whole numbers:
-is_whole_number_all <- function (x, tolerance = .Machine$double.eps^0.5) {
-  is.numeric(x) && all(abs(x - round(x)) < tolerance)
-  # if (is.numeric(x)) {
-  #   all(abs(x - round(x)) < tolerance)
-  # } else {
-  #   FALSE
-  # }
+# Predicate to test if all elements of a vector are whole numbers. This function
+# uses some code from the `?integer` documentation.
+is_whole_number <- function (x, tolerance = .Machine$double.eps^0.5) {
+  abs(x - round(x)) < tolerance
 }
 
 format_after_upload <- function(df, digits) {
@@ -324,9 +329,9 @@ format_after_upload <- function(df, digits) {
   # Decimal numbers are padded to `width_max` with trailing zeros. Disclaimer:
   # The anonymous function uses some code from the `?integer` documentation.
   mutate(df, across(
-    .cols = indices_numeric_like_cols,
+    .cols = all_of(indices_numeric_like_cols),
     .fns  = function(x) {
-      if (is_whole_number_all(as.numeric(x))) {
+      if (all(is_whole_number(as.numeric(x)))) {
         as.integer(x)
       } else {
         restore_zeros(x, width = width_max)
