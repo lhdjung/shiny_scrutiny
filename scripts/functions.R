@@ -17,6 +17,18 @@ select_rounding_method <- function(rounding) {
   )
 }
 
+plot_test_results <- function(df, name_test, size_text) {
+  if (any(name_test == c("GRIM", "GRIMMER"))) {
+    grim_plot(df, rounding = rounding) +
+      theme(text = element_text(size = size_text))
+  } else if (name_test == "DEBIT") {
+    debit_plot(df, label_size = size_text * 0.285) +
+      theme_minimal(base_size = size_text)
+  } else {
+    stop("No visualization defined")
+  }
+}
+
 parse_dispersion <- function(string) {
   string <- paste0("c(", string, ")")
   tryCatch(
@@ -197,24 +209,32 @@ rename_after_audit_seq <- function(df, name_test) {
 
 
 
-# Use the outcommented function `rename_after_audit_seq_generate_code()` below
-# like in the next block, for example with GRIMMER, to generate the code that
-# should go into `rename_after_audit_seq()` as output printed into the console:
+# Devtime: renaming columns after `audit_seq()` ---------------------------
 
-# names_grimmer <- pigs5 |>
-#   grimmer_map_seq() |>
-#   audit_seq() |>
-#   rename_after_audit_seq() |>
-#   colnames() |>
-#   constructive::construct()
+# Use the outcommented function `devtime_generate_colnames_audit_seq()` below,
+# for example with "GRIMMER", to generate the code for renaming columns after
+# calling `audit_seq()`. Copy it from the console, then paste it into
+# `rename_after_audit_seq()`. This requires the constructive package to be
+# installed, as well as sourcing all of the usually-outcommented functions in
+# this section. (It's called "devtime" because it's meant to be done by the
+# developer, not at runtime; even though the code is not compiled.)
 
-
-# select_key_cols <- function(df) {
-#   df[1L:(match("consistency", names(df)) - 1L)]
+# devtime_generate_colnames_audit_seq <- function(name_test = c("GRIM", "GRIMMER", "DEBIT")) {
+#   name_test <- arg_match(name_test)
+#   df_tested_seq <- switch(
+#     name_test,
+#     "GRIM" = grim_map_seq(pigs1),
+#     "GRIMMER" = grimmer_map_seq(pigs5),
+#     "DEBIT" = debit_map_seq(pigs3)
+#   )
+#   df_tested_seq |>
+#     audit_seq() |>
+#     devtime_rename_after_audit_seq() |>
+#     colnames() |>
+#     constructive::construct()
 # }
 #
-#
-# rename_after_audit_seq_generate_code <- function(df) {
+# devtime_rename_after_audit_seq <- function(df) {
 #   regex_key_var_names <- paste0(
 #     "(?<=(^(hits_|diff_)))(",
 #     paste0(names(select_key_cols(df)), collapse = "|"),
@@ -236,19 +256,11 @@ rename_after_audit_seq <- function(df, name_test) {
 #   names_all[names_all == "Hits for total"] <- "Total number of hits"
 #   `names<-`(df, value = names_all)
 # }
+#
+# select_key_cols <- function(df) {
+#   df[1L:(match("consistency", names(df)) - 1L)]
+# }
 
-
-plot_test_results <- function(df, name_test, size_text) {
-  if (any(name_test == c("GRIM", "GRIMMER"))) {
-    grim_plot(df, rounding = rounding) +
-      theme(text = element_text(size = size_text))
-  } else if (name_test == "DEBIT") {
-    debit_plot(df, label_size = size_text * 0.285) +
-      theme_minimal(base_size = size_text)
-  } else {
-    stop("No visualization defined")
-  }
-}
 
 
 # Duplicate analysis ------------------------------------------------------
