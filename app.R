@@ -17,7 +17,7 @@ source("scripts/functions.R")
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
-  title = "Scrutiny webapp (beta)",
+  title = "Error detection webapp",
   id = "nav",
   sidebar = sidebar(
     conditionalPanel(
@@ -85,7 +85,7 @@ ui <- page_navbar(
       ) |>
         tooltip(
           "The consistency of summary data is determined on the basis of \
-          reconstructing numbers rounded in the chosen way (or either \
+          reconstructing numbers rounded in the chosen way (or in either \
           of two ways, as with the permissive default \"Up or down\")."
         ),
       conditionalPanel(
@@ -105,7 +105,7 @@ ui <- page_navbar(
       textInput("dispersion", label = "Dispersion:", value = "1:5") |>
         tooltip(
           "How far should the dispersed sequences be spread out?
-          You can define a sequence of steps: for example, the default
+          You can define a sequence of steps. For example, the default
           \"1:5\" goes five steps up and down from the reported values.
           Alternatively, choose specific steps separated by commas,
           like \"2, 5, 7\"."
@@ -178,8 +178,9 @@ ui <- page_navbar(
         full_screen = TRUE
       ) |>
         tooltip(
-          "Blue: consistent, red: inconsistent. The grey background flags \
-          all inconsistent combinations, whether present in the data or not."
+          "Blue: consistent, red: inconsistent. The grey background \
+          flags all possible inconsistent combinations, whether \
+          present in the data or not."
         )
     ),
     # Basic analyses -- one wide card below:
@@ -489,6 +490,7 @@ server <- function(input, output) {
   })
 
   output$output_df_audit_seq <- renderTable({
+    check_dispersion_audit_seq(input$dispersion)
     tested_df_seq() |>
       audit_seq() |>
       mutate(across(
@@ -634,6 +636,7 @@ server <- function(input, output) {
       )
     },
     content = function(file) {
+      check_dispersion_audit_seq(input$dispersion)
       tested_df_seq() |>
         audit_seq() |>
         rename_after_audit_seq(input$name_test) |>
@@ -744,7 +747,8 @@ server <- function(input, output) {
       a("Heathers and Brown (2019)", href = "https://osf.io/5vb3u"),
       "on DEBIT.",
       br(), br(),  # Newlines
-      p("Proudly supported by the University of Bern.")
+      # TODO: INSERT GRANT NAME / NUMBER
+      p("Proudly supported by University of Bern grant XYZ.")
     )
   })
 }
