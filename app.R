@@ -245,7 +245,7 @@ ui <- page_navbar(
       full_screen = TRUE
     ) |>
       tooltip(
-        "Ranked by the duplicate count (or frequency). Locations are
+        "Ranked by the frequency. Locations are
         the names of the columns in your data where a given value appears."
       ),
     card(

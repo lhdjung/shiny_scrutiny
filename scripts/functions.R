@@ -275,7 +275,7 @@ tidy_acf <- function(acf_object) {
 
 rename_duplicate_count_df <- function(df) {
   `names<-`(df, c(
-    "Value", "Duplicate count", "Locations", "Number of locations"
+    "Value", "Frequency", "Locations", "Number of locations"
   ))
 }
 
@@ -303,7 +303,7 @@ rename_duplicate_count_colpair_df <- function(df) {
 rename_duplicate_summary <- function(df, function_ending) {
   df$term <- switch(
     function_ending,
-    "count" = c("Duplicate count", "Number of locations"),
+    "count" = c("Frequency", "Number of locations"),
     "count_colpair" = special_colnames_count_colpair,
     "tally" = c(df$term[seq_along(df$term) - 1L], "Total")
   )
