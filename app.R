@@ -1,16 +1,6 @@
-library(shiny)
-library(bslib)
-library(rlang)
-library(ggplot2)
-library(dplyr)
-library(corrr)
-library(readr)
-library(stringr)
-library(janitor)
-library(scrutiny)
-library(forecast)
 
-# Load helper functions:
+# Load packages and helper functions:
+source("scripts/packages.R")
 source("scripts/functions.R")
 
 
