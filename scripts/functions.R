@@ -265,14 +265,6 @@ rename_after_audit_seq <- function(df, name_test) {
 
 # Duplicate analysis ------------------------------------------------------
 
-# This transformation is adapted from `broom:::tidy.acf()`:
-tidy_acf <- function(acf_object) {
-  tibble(
-    Lag = as.numeric(acf_object$lag),
-    `Autocorrelation function` = as.numeric(acf_object$acf)
-  )
-}
-
 rename_duplicate_count_df <- function(df) {
   `names<-`(df, c(
     "Value", "Frequency", "Locations", "Number of locations"

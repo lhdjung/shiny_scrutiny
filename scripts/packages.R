@@ -10,8 +10,7 @@ packages_needed <- c(
   "readr",
   "stringr",
   "janitor",
-  "scrutiny",
-  "forecast"
+  "scrutiny"
 )
 
 # Which packages are missing (i.e., not installed)? How many?

@@ -110,17 +110,6 @@ ui <- page_navbar(
     ),
     conditionalPanel(
       "input.nav === 'Duplicate analysis'",
-      numericInput(
-        "plot_size_text_acf", label = "Plot text size:", value = 16, min = 1
-      ),
-      numericInput(
-        "acf_ci", label = "Confidence interval (autocorrelation):",
-        value = 0.95, min = 0, max = 1, step = 0.05
-      ) |>
-        tooltip(
-          "Coverage probability for the autocorrelation plot's \
-          confidence interval"
-        ),
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
       downloadButton("download_duplicate_count_audit", "Download summary (frequency table)"),
       downloadButton("download_duplicate_count_colpair", "Download duplicates across columns"),
@@ -290,20 +279,6 @@ ui <- page_navbar(
         "Summary statistics of the \"_n\" columns.
         Because the frequencies appear as often as their own value says,
         these statistics should be interpreted with caution."
-      ),
-    # card(
-    #   card_header("Autocorrelation results"),
-    #   tableOutput("output_acf_df"),
-    #   full_screen = FALSE
-    # ),
-    card(
-      card_header("Autocorrelation plot"),
-      plotOutput("output_acf_plot"),
-      full_screen = TRUE
-    ) |>
-      tooltip(
-        "Autocorrelation function (ACF) plot. The dashed blue line
-        is the confidence interval."
       )
   ),
   nav_panel(
@@ -513,18 +488,6 @@ server <- function(input, output) {
       select(where(is_numeric_like)) |>
       mutate(across(everything(), as.numeric))
   })
-  # acf_df <- reactive({
-  #   user_data_numeric() |>
-  #     acf(plot = FALSE) |>
-  #     tidy_acf()
-  # })
-  acf_plot <- reactive({
-    user_data_numeric() |>
-      ggAcf(ci = input$acf_ci) +
-      labs(title = NULL, y = "Autocorrelation function") +
-      theme_minimal(base_size = input$plot_size_text_acf) +
-      theme(panel.grid = element_blank())
-  })
 
   # Display the duplicate analyses:
   output$output_duplicate_count <- renderTable({
@@ -538,12 +501,6 @@ server <- function(input, output) {
   output$output_duplicate_tally <- renderTable({
     duplicate_tally_df() #|>
     # rename_duplicate_tally_df()
-  })
-  # output$output_acf_df <- renderTable({
-  #   acf_df()
-  # })
-  output$output_acf_plot <- renderPlot({
-    acf_plot()
   })
 
   # Summarize the duplicate analyses:
@@ -727,9 +684,7 @@ server <- function(input, output) {
       br(), br(),  # Newlines
       "It applies tools from the",
       a("scrutiny", href = "https://lhdjung.github.io/scrutiny/"),
-      "package for error detection in science. The",
-      a("forecast", href = "https://pkg.robjhyndman.com/forecast/index.html"),
-      "package is used to create the ACF plot. See",
+      "package for error detection in science. See",
       a("Brown and Heathers (2017)", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
       "on GRIM,",
       a("Allard (2018)", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),

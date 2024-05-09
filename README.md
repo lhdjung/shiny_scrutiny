@@ -18,5 +18,3 @@ The app provides an intuitive web interface that brings the powers of scrutiny a
 -   Consistency testing with GRIM, GRIMMER, etc.
 
 -   Duplicate detection
-
--   ACF plot using the [forecast](https://pkg.robjhyndman.com/forecast/index.html) package
