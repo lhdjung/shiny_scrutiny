@@ -680,7 +680,11 @@ server <- function(input, output) {
     htmltools::tagList(
       "This webapp was made by",
       a("Lukas Jung", href = "https://github.com/lhdjung"),
-      "in R, using shiny with bslib.",
+      "in R, using",
+      a("shiny", href = "https://shiny.posit.co/"),
+      "with a",
+      a("bslib", href = "https://rstudio.github.io/bslib/index.html"),
+      "UI.",
       br(), br(),  # Newlines
       "It applies tools from the",
       a("scrutiny", href = "https://lhdjung.github.io/scrutiny/"),
