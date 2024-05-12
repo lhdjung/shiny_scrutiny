@@ -1,34 +1,51 @@
 
-# Devtime: renaming columns after `audit_seq()` ---------------------------
+# NOTE: run this script to generate the code for renaming columns after calling
+# `audit_seq()`. It's called "devtime" because it's meant to be done by the
+# developer, not at runtime; even though the code is not compiled. The script
+# requires the constructive package to be installed.
 
-# Use the outcommented function `devtime_generate_colnames_audit_seq()` below,
-# for example with "GRIMMER", to generate the code for renaming columns after
-# calling `audit_seq()`. Copy it from the console, then paste it into
-# `rename_after_audit_seq()`. This requires the constructive package to be
-# installed, as well as sourcing all of the usually-outcommented functions in
-# this section. (It's called "devtime" because it's meant to be done by the
-# developer, not at runtime; even though the code is not compiled.)
+# Follow these steps:
 
-devtime_generate_colnames_audit_seq <- function(name_test = c("GRIM", "GRIMMER", "DEBIT")) {
-  name_test <- arg_match(name_test)
-  df_tested_seq <- switch(
-    name_test,
-    "GRIM" = grim_map_seq(pigs1),
-    "GRIMMER" = grimmer_map_seq(pigs5),
-    "DEBIT" = debit_map_seq(pigs3)
-  )
-  df_tested_seq |>
+# (1) Enter the names of each supported consistency test right below in
+# `test_df_all`. Next to it, call the corresponding sequence mapper with a
+# suitable data frame as an argument.
+
+# (2) Run the script.
+
+# (3) Copy the column names -- printed at the end of the console output -- into
+# the switch statement within `rename_after_audit_seq()` in scripts/functions.R.
+
+test_df_all <- list(
+  GRIM = grim_map_seq(pigs1),
+  GRIMMER = grimmer_map_seq(pigs5),
+  DEBIT = debit_map_seq(pigs3)
+)
+
+
+# Functions ---------------------------------------------------------------
+
+# This is needed because functions.R includes `rename_key_vars()`, which is
+# called within `devtime_rename_after_audit_seq()`.
+source("scripts/functions.R")
+
+devtime_generate_colnames_audit_seq <- function(name_test) {
+  message(paste0(
+    "\"", name_test, "\"", " column names in `rename_after_audit_seq()`:"
+  ))
+  test_df_all[[name_test]] |>
     audit_seq() |>
     devtime_rename_after_audit_seq() |>
     colnames() |>
-    constructive::construct()
+    constructive::construct() |>
+    print()
+  message("\n")
 }
 
 # Helper for `devtime_generate_colnames_audit_seq()`:
 devtime_rename_after_audit_seq <- function(df) {
   regex_key_var_names <- paste0(
     "(?<=(^(hits_|diff_)))(",
-    paste0(names(select_key_cols(df)), collapse = "|"),
+    paste0(names(devtime_select_key_cols(df)), collapse = "|"),
     ")(?=(_up|_down|))"
   )
   names_all <- names(df)
@@ -49,6 +66,13 @@ devtime_rename_after_audit_seq <- function(df) {
 }
 
 # Helper for the other helper:
-select_key_cols <- function(df) {
+devtime_select_key_cols <- function(df) {
   df[1L:(match("consistency", names(df)) - 1L)]
+}
+
+
+# Printing column names ---------------------------------------------------
+
+for (name in names(test_df_all)) {
+  devtime_generate_colnames_audit_seq(name)
 }
