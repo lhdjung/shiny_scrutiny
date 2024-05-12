@@ -1,6 +1,6 @@
 
-# All packages required by the app should be entered here:
-packages_needed <- c(
+# All packages that the app needs should be entered here:
+packages_required <- c(
   "shiny",
   "bslib",
   "rlang",
@@ -15,20 +15,20 @@ packages_needed <- c(
 
 # Which packages are missing (i.e., not installed)? How many?
 packages_installed <- installed.packages()[, "Package"]
-packages_missing <- packages_needed[!packages_needed %in% packages_installed]
+packages_missing <- packages_required[!packages_required %in% packages_installed]
 n_missing <- length(packages_missing)
 
 # If any packages are missing, inform the user that they need to be installed,
 # provide the code to do so, and throw an error. The wording of the error
 # message is different if exactly one package is missing, which is conveyed by
 # the `missing1` flag.
-if (n_missing > 0) {
+if (n_missing > 0L) {
   missing1 <- n_missing == 1
   msg_package_s <- if (missing1) "package" else "packages"
-  msg_it_them <- if (missing1) "it" else "them"
-  msg_its_their <- if (missing1) "its" else "their"
-  msg_c_open <- if (missing1) "" else "c("
-  msg_c_close <- if (missing1) "" else ")"
+  msg_it_them   <- if (missing1) "it"      else "them"
+  msg_its_their <- if (missing1) "its"     else "their"
+  msg_c_open    <- if (missing1) ""        else "c("
+  msg_c_close   <- if (missing1) ""        else ")"
   msg_package_names <- paste0("\"", packages_missing, "\"", collapse = ", ")
   message(paste("Note:", n_missing, "required", msg_package_s, "missing."))
   message(paste(
@@ -45,10 +45,9 @@ if (n_missing > 0) {
 # If the app gets here, all packages are already installed, so just attach them.
 # The option `character.only = TRUE` is needed because the package name is not
 # entered as a literal expression, as in `library(dplyr)`, but via a variable.
-for (i in seq_along(packages_needed)) {
-  library(packages_needed[i], character.only = TRUE)
+for (package in packages_required) {
+  library(package, character.only = TRUE)
 }
 
 # Remove large objects; they won't be needed later:
 rm(list = ls())
-
