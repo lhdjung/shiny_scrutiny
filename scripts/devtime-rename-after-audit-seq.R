@@ -6,14 +6,23 @@
 
 # Follow these steps:
 
-# (1) Enter the names of each supported consistency test right below in
-# `test_df_all`. Next to it, call the corresponding sequence mapper with a
-# suitable data frame as an argument.
+# (1) Enter the name of each supported consistency test in the `test_df_all`
+# list under "Preparation" below. Next to it, call the corresponding sequence
+# mapper with a suitable data frame as an argument.
 
 # (2) Run the script.
 
 # (3) Copy the column names -- printed at the end of the console output -- into
 # the switch statement within `rename_after_audit_seq()` in scripts/functions.R.
+
+
+# Preparation -------------------------------------------------------------
+
+# Source packages.R because the code here relies on some of those packages.
+# Also, functions.R is needed because it contains `rename_key_vars()`, which is
+# called within `devtime_rename_after_audit_seq()`.
+source("scripts/packages.R")
+source("scripts/functions.R")
 
 test_df_all <- list(
   GRIM = grim_map_seq(pigs1),
@@ -23,10 +32,6 @@ test_df_all <- list(
 
 
 # Functions ---------------------------------------------------------------
-
-# This is needed because functions.R includes `rename_key_vars()`, which is
-# called within `devtime_rename_after_audit_seq()`.
-source("scripts/functions.R")
 
 devtime_generate_colnames_audit_seq <- function(name_test) {
   message(paste0(
