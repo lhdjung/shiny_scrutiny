@@ -286,9 +286,9 @@ ui <- page_navbar(
     uiOutput("text_about")
   ),
   nav_spacer(),
-  nav_item(img(
-    src = "uni_bern_funding.drawio.svg", alt = "Funded by University of Bern",
-    height = 40
+  nav_item(a(
+    href = "https://error.reviews/",
+    img(src = "uni_bern_funding.drawio.svg", height = "40px")
   )),
   fillable = FALSE, theme = bs_theme(version = 5)
 )
