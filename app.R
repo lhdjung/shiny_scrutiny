@@ -731,7 +731,11 @@ server <- function(input, output) {
       br(), br(),  # Newlines
       "Hosting provided by",
       a("ERROR: a bug bounty program for science", href = "https://error.reviews", .noWS = "after"),
-      ", which is funded by the University of Bern \"Humans in Digital Transformation\" fund."
+      ", which is funded by the University of Bern \"Humans in Digital Transformation\" fund.",
+      br(), br(),  # Newlines
+      "Source code is",
+      a("on Github", href = "https://github.com/lhdjung/shiny_scrutiny", .noWS = "after"),
+      "."
     )
   })
 }
