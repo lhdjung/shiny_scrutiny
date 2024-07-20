@@ -697,8 +697,11 @@ server <- function(input, output) {
       "on DEBIT.",
       br(), br(),  # Newlines
       # TODO: INSERT GRANT NAME / NUMBER
-      p("Proudly supported by University of Bern grant XYZ.")
-    )
+      p("Hosting provided by ",
+        a("ERROR: a bug bounty program for science", href = "https://error.reviews"),
+        ", which is funded by the University of Bern 'Humans in Digital Transformation' fund."
+      )
+      )
   })
 }
 
