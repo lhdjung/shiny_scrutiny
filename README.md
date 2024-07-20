@@ -1,4 +1,4 @@
-# Scrutiny webapp
+# Error detection webapp
 
 <!-- badges: start -->
 
