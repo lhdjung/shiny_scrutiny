@@ -41,7 +41,8 @@ ui <- page_navbar(
       conditionalPanel(
         "input.name_test === 'GRIM'",
         selectInput(
-          "mean_percent", label = "Mean or percentage?",
+          "mean_percent",
+          label = "Mean or percentage?",
           choices = c("Mean", "Percentage")
         ) |>
           tooltip(
@@ -53,7 +54,11 @@ ui <- page_navbar(
       conditionalPanel(
         "input.mean_percent === 'Mean'",
         numericInput(
-          "items", label = "Number of scale items", value = 1, min = 1, step = 1
+          "items",
+          label = "Number of scale items",
+          value = 1,
+          min = 1,
+          step = 1
         ) |>
           tooltip(
             "If the scale from which the means are derived is composed \
@@ -67,7 +72,8 @@ ui <- page_navbar(
       # ),
       # Rounding:
       selectInput(
-        "rounding", label = "Rounding method:",
+        "rounding",
+        label = "Rounding method:",
         choices = c(
           "Up or down", "Up", "Down", "Up from...", "Down from...",
           "Ceiling or floor", "Ceiling", "Floor", "Truncate", "Anti-truncate"
@@ -81,15 +87,23 @@ ui <- page_navbar(
       conditionalPanel(
         "input.rounding === 'Up from...'",
         numericInput(
-          "rounding_up_from", label = "Round up from:", value = 5,
-          min = 0, max = 9, step = 1
+          "rounding_up_from",
+          label = "Round up from:",
+          value = 5,
+          min = 0,
+          max = 9,
+          step = 1
         )
       ),
       conditionalPanel(
         "input.rounding === 'Down from...'",
         numericInput(
-          "rounding_down_from", label = "Round down from:", value = 5,
-          min = 0, max = 9, step = 1
+          "rounding_down_from",
+          label = "Round down from:",
+          value = 5,
+          min = 0,
+          max = 9,
+          step = 1
         )
       ),
       textInput("dispersion", label = "Dispersion:", value = "1:5") |>
@@ -101,7 +115,10 @@ ui <- page_navbar(
           like \"2, 5, 7\"."
         ),
       numericInput(
-        "plot_size_text", label = "Plot text size:", value = 14, min = 1
+        "plot_size_text",
+        label = "Plot text size:",
+        value = 14,
+        min = 1
       ),
       downloadButton("download_consistency_test", "Download results by case"),
       downloadButton("download_consistency_test_summary", "Download summary (results by case)"),
@@ -117,9 +134,7 @@ ui <- page_navbar(
       downloadButton("download_duplicate_tally", "Download value tally at original location"),
       downloadButton("download_duplicate_tally_audit", "Download summary (value tally at original location)"),
     ),
-    conditionalPanel(
-      "input.nav === 'About'"
-    )
+    conditionalPanel("input.nav === 'About'")
   ),
   nav_panel(
     "Data upload",
@@ -144,7 +159,6 @@ ui <- page_navbar(
       card(
         card_header("Results by case"),
         tableOutput("output_df"),
-        # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -152,7 +166,6 @@ ui <- page_navbar(
       card(
         card_header("Visualization"),
         plotOutput("output_plot"),
-        # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -166,7 +179,6 @@ ui <- page_navbar(
     card(
       card_header("Summary (results by case)"),
       tableOutput("output_df_audit"),
-      # card_body(max_height = "10px"),
       full_screen = TRUE
     ) |>
       tooltip("Simple summaries of testing your data."),
@@ -176,7 +188,6 @@ ui <- page_navbar(
       card(
         card_header("Dispersed sequences"),
         tableOutput("output_df_seq"),
-        # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -189,7 +200,6 @@ ui <- page_navbar(
       card(
         card_header("Visualization (dispersed sequences)"),
         plotOutput("output_plot_seq"),
-        # card_body(max_height = "10px"),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -204,7 +214,6 @@ ui <- page_navbar(
     card(
       card_header("Summary (dispersed sequences)"),
       tableOutput("output_df_audit_seq"),
-      # card_body(max_height = "10px"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -290,7 +299,8 @@ ui <- page_navbar(
     href = "https://error.reviews/",
     img(src = "uni_bern_funding.drawio.svg", height = "40px")
   )),
-  fillable = FALSE, theme = bs_theme(version = 5)
+  fillable = FALSE,
+  theme = bs_theme(version = 5)
 )
 
 
@@ -406,7 +416,8 @@ server <- function(input, output) {
   output$output_df <- renderTable({
     tested_df() |>
       rename_after_testing(
-        input$name_test, percent = input$mean_percent == "Percentage"
+        input$name_test,
+        percent = input$mean_percent == "Percentage"
       )
   })
 
@@ -430,19 +441,25 @@ server <- function(input, output) {
     switch(
       input$name_test,
       "GRIM" = grim_map_seq(
-        user_data(), dispersion = parse_dispersion(input$dispersion),
+        user_data(),
+        dispersion = parse_dispersion(input$dispersion),
         items = input$items,
         percent = input$mean_percent == "Percentage",
-        rounding = rounding_method(), threshold = rounding_threshold()
+        rounding = rounding_method(),
+        threshold = rounding_threshold()
       ),
       "GRIMMER" = grimmer_map_seq(
-        user_data(), dispersion = parse_dispersion(input$dispersion),
+        user_data(),
+        dispersion = parse_dispersion(input$dispersion),
         items = input$items,
-        rounding = rounding_method(), threshold = rounding_threshold()
+        rounding = rounding_method(),
+        threshold = rounding_threshold()
       ),
       "DEBIT" = debit_map_seq(
-        user_data(), dispersion = parse_dispersion(input$dispersion),
-        rounding = rounding_method(), threshold = rounding_threshold()
+        user_data(),
+        dispersion = parse_dispersion(input$dispersion),
+        rounding = rounding_method(),
+        threshold = rounding_threshold()
       )
     )
   })
@@ -450,7 +467,8 @@ server <- function(input, output) {
   output$output_df_seq <- renderTable({
     tested_df_seq() |>
       rename_after_testing_seq(
-        input$name_test, percent = input$mean_percent == "Percentage"
+        input$name_test,
+        percent = input$mean_percent == "Percentage"
       )
   })
 
@@ -499,8 +517,7 @@ server <- function(input, output) {
       rename_duplicate_count_colpair_df()
   })
   output$output_duplicate_tally <- renderTable({
-    duplicate_tally_df() #|>
-    # rename_duplicate_tally_df()
+    duplicate_tally_df()
   })
 
   # Summarize the duplicate analyses:
@@ -538,7 +555,8 @@ server <- function(input, output) {
     content = function(file) {
       tested_df() |>
         rename_after_testing(
-          input$name_test, percent = input$mean_percent == "Percentage"
+          name_test = input$name_test,
+          percent = input$mean_percent == "Percentage"
         ) |>
         clean_names() |>
         write_csv(file)
@@ -548,7 +566,9 @@ server <- function(input, output) {
   output$download_consistency_test_summary <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        name_input_file(), input$name_test, addendum = "_summary"
+        name_input_file(),
+        name_technique = input$name_test,
+        addendum = "_summary"
       )
     },
     content = function(file) {
@@ -563,13 +583,16 @@ server <- function(input, output) {
   output$download_consistency_test_seq <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        name_input_file(), input$name_test, "_sequences"
+        name_input_file(),
+        name_technique = input$name_test,
+        addendum = "_sequences"
       )
     },
     content = function(file) {
       tested_df_seq() |>
         rename_after_testing_seq(
-          input$name_test, percent = input$mean_percent == "Percentage"
+          name_test = input$name_test,
+          percent = input$mean_percent == "Percentage"
         ) |>
         clean_names() |>
         write_csv(file)
@@ -579,7 +602,9 @@ server <- function(input, output) {
   output$download_consistency_test_audit_seq <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        name_input_file(), input$name_test, "_sequences_summary"
+        name_input_file(),
+        name_technique = input$name_test,
+        addendum = "_sequences_summary"
       )
     },
     content = function(file) {
@@ -610,7 +635,11 @@ server <- function(input, output) {
   # Summary (frequency table):
   output$download_duplicate_count_audit <- downloadHandler(
     filename = function() {
-      format_download_file_name(name_input_file(), "duplicate_count", "_summary")
+      format_download_file_name(
+        name_input_file(),
+        name_technique = "duplicate_count",
+        addendum = "_summary"
+      )
     },
     content = function(file) {
       duplicate_count_df() |>
@@ -637,7 +666,9 @@ server <- function(input, output) {
   output$download_duplicate_count_colpair_audit <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        name_input_file(), "duplicate_count_colpair", "_summary"
+        name_input_file(),
+        name_technique = "duplicate_count_colpair",
+        addendum = "_summary"
       )
     },
     content = function(file) {
@@ -664,7 +695,9 @@ server <- function(input, output) {
   output$download_duplicate_tally_audit <- downloadHandler(
     filename = function() {
       format_download_file_name(
-        name_input_file(), "duplicate_tally", "_summary"
+        name_input_file(),
+        name_technique = "duplicate_tally",
+        addendum = "_summary"
       )
     },
     content = function(file) {

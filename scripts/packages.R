@@ -32,11 +32,17 @@ if (n_missing > 0L) {
   msg_package_names <- paste0("\"", packages_missing, "\"", collapse = ", ")
   message(paste("Note:", n_missing, "required", msg_package_s, "missing."))
   message(paste(
-    "Run this code to install", msg_it_them, "along with",
-    msg_its_their, "dependencies:"
+    "Run this code to install",
+    msg_it_them,
+    "along with",
+    msg_its_their,
+    "dependencies:"
   ))
   cat(paste0(
-    "  install.packages(", msg_c_open, msg_package_names, msg_c_close,
+    "  install.packages(",
+    msg_c_open,
+    msg_package_names,
+    msg_c_close,
     ", dependencies = TRUE)\n"
   ))
   stop("Can't run app without required packages installed. See fix above.")
@@ -49,5 +55,5 @@ for (package in packages_required) {
   library(package, character.only = TRUE)
 }
 
-# Remove large objects; they won't be needed later:
+# Remove objects defined above; they won't be needed later:
 rm(list = ls())

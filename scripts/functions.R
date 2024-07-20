@@ -232,12 +232,6 @@ rename_duplicate_count_colpair_df <- function(df) {
     ))
 }
 
-# # Renaming the columns of `duplicate_tally()`'s output is not necessary:
-# rename_duplicate_tally_df <- function(df) {
-#   is_even <- function(x) x %% 2 == 0
-#   df[is_even(seq_len(ncol(df)))]
-# }
-
 rename_duplicate_summary <- function(df, function_ending) {
   df$term <- switch(
     function_ending,
@@ -265,7 +259,10 @@ format_after_upload <- function(df, digits) {
   # coercion generates new `NA`s, which happens whenever a string can't be
   # parsed as a number. See `scrutiny::is_numeric_like()`.
   indices_numeric_like_cols <- which(vapply(
-    df, is_numeric_like, logical(1L), USE.NAMES = FALSE
+    df,
+    is_numeric_like,
+    logical(1L),
+    USE.NAMES = FALSE
   ))
   # Determine the maximum number of decimal places from among the numeric-like
   # values in `df` (see `scrutiny::is_numeric_like()`) and `digits`:
