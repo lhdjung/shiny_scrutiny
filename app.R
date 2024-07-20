@@ -682,9 +682,9 @@ server <- function(input, output) {
       a("Lukas Jung", href = "https://github.com/lhdjung"),
       "in R, using",
       a("shiny", href = "https://shiny.posit.co/"),
-      "with a",
-      a("bslib", href = "https://rstudio.github.io/bslib/index.html"),
-      "UI.",
+      "with",
+      a("bslib", href = "https://rstudio.github.io/bslib/index.html", .noWS = "after"),
+      ".",
       br(), br(),  # Newlines
       "It applies tools from the",
       a("scrutiny", href = "https://lhdjung.github.io/scrutiny/"),
@@ -696,12 +696,10 @@ server <- function(input, output) {
       a("Heathers and Brown (2019)", href = "https://osf.io/5vb3u"),
       "on DEBIT.",
       br(), br(),  # Newlines
-      # TODO: INSERT GRANT NAME / NUMBER
-      p("Hosting provided by ",
-        a("ERROR: a bug bounty program for science", href = "https://error.reviews"),
-        ", which is funded by the University of Bern 'Humans in Digital Transformation' fund."
-      )
-      )
+      "Hosting provided by",
+      a("ERROR: a bug bounty program for science", href = "https://error.reviews", .noWS = "after"),
+      ", which is funded by the University of Bern \"Humans in Digital Transformation\" fund."
+    )
   })
 }
 
