@@ -389,10 +389,13 @@ server <- function(input, output) {
     # Test for consistency using a mapping function, then return the data frame:
     out <- switch(
       input$name_test,
-      "GRIM" = grim_map(
-        user_data(), items = input$items,
-        percent = input$mean_percent == "Percentage",
-        rounding = rounding_method(), threshold = rounding_threshold()
+      "GRIM" = mutate(
+        grim_map(
+          user_data(), items = input$items,
+          percent = input$mean_percent == "Percentage",
+          rounding = rounding_method(), threshold = rounding_threshold()
+        ),
+        ratio = if_else(ratio < 0, 0, ratio)
       ),
       "GRIMMER" = grimmer_map(
         user_data(), items = input$items,
@@ -427,7 +430,7 @@ server <- function(input, output) {
 
   output$output_df_audit <- renderTable({
     df_audit() |>
-      rename_after_audit(input$name_test)
+      rename_after_audit(input$name_test, input$mean_percent == "Percentage")
   })
 
   output$output_plot <- renderPlot(
@@ -440,13 +443,16 @@ server <- function(input, output) {
   tested_df_seq <- reactive({
     switch(
       input$name_test,
-      "GRIM" = grim_map_seq(
-        user_data(),
-        dispersion = parse_dispersion(input$dispersion),
-        items = input$items,
-        percent = input$mean_percent == "Percentage",
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+      "GRIM" = mutate(
+        grim_map_seq(
+          user_data(),
+          dispersion = parse_dispersion(input$dispersion),
+          items = input$items,
+          percent = input$mean_percent == "Percentage",
+          rounding = rounding_method(),
+          threshold = rounding_threshold()
+        ),
+        ratio = if_else(ratio < 0, 0, ratio)
       ),
       "GRIMMER" = grimmer_map_seq(
         user_data(),
@@ -573,7 +579,7 @@ server <- function(input, output) {
     },
     content = function(file) {
       df_audit() |>
-        rename_after_audit(input$name_test) |>
+        rename_after_audit(input$name_test, input$mean_percent == "Percentage") |>
         clean_names() |>
         write_csv(file)
     }

@@ -54,10 +54,15 @@ rename_after_testing <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
   if (name_test == "GRIM") {
     mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
+    ratio_header <- if (percent) "percentages" else "means"
+    ratio_header <- paste(
+      "Probability of inconsistency for random",
+      ratio_header
+    )
     rename(
       df,
       "{mean_or_percent}" := X,
-      `GRIM ratio` = Ratio
+      "{ratio_header}" := Ratio
     )
   } else if (name_test == "GRIMMER") {
     rename(
@@ -80,7 +85,12 @@ rename_after_testing <- function(df, name_test, percent) {
   }
 }
 
-rename_after_audit <- function(df, name_test) {
+rename_after_audit <- function(df, name_test, percent) {
+  ratio_header <- if (percent) "percentages" else "means"
+  ratio_header <- paste(
+    "Mean probability of inconsistency for random",
+    ratio_header
+  )
   `names<-`(
     df, switch(
       name_test,
@@ -88,8 +98,8 @@ rename_after_audit <- function(df, name_test) {
         "Inconsistent cases",
         "All cases",
         "Inconsistency rate",
-        "Mean GRIM ratio",
-        "Inconsistencies / ratio",
+        ratio_header,
+        "Inconsistencies / probability",
         "Testable cases",
         "Testable cases rate"
       ),
@@ -138,7 +148,7 @@ rename_after_testing_seq <- function(df, name_test, percent) {
     df <- rename(
       df,
       "{mean_or_percent}" := X,
-      `GRIM ratio` = Ratio,
+      `Probability of inconsistency for random values` = Ratio,
       `Step difference to reported` = Diff_var,
       Variable = Var
     )

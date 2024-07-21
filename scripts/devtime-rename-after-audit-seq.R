@@ -4,6 +4,11 @@
 # developer, not at runtime; even though the code is not compiled. The script
 # requires the constructive package to be installed.
 
+# For now, this needs to take the workaround for the GRIM ratio into account.
+# This quantity is currently renamed to "probability of inconsistency for random
+# {means / percentages}" using a slight hack that will remain in place until
+# upstream changes in scrutiny take effect.
+
 # Follow these steps:
 
 # (1) Enter the name of each supported consistency test in the `test_df_all`
