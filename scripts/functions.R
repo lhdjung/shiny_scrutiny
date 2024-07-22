@@ -52,6 +52,14 @@ check_dispersion_audit_seq <- function(dispersion) {
 # with the assignment to `mean_or_percent`.
 rename_after_testing <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
+
+  # Make sure any `sd` column is always displayed as `SD`, not `Sd`. This is
+  # needed for GRIM, which doesn't test SDs, so `rename_key_vars()` takes no
+  # effect if the data still include an `sd` column -- as does, notably, the
+  # example dataset `pigs5`.
+  names(df)[names(df) == "sd" | names(df) == "Sd"] <- "SD"
+
+  # Rename by consistency test:
   if (name_test == "GRIM") {
     mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
     ratio_header <- if (percent) "percentages" else "means"
@@ -62,19 +70,21 @@ rename_after_testing <- function(df, name_test, percent) {
     rename(
       df,
       "{mean_or_percent}" := X,
+      # # Not tested by GRIM but can still occur in the data
+      # SD = Sd,
       "{ratio_header}" := Ratio
     )
   } else if (name_test == "GRIMMER") {
     rename(
       df,
-      Mean = X,
-      SD = Sd
+      Mean = X#,
+      # SD = Sd
     )
   } else if (name_test == "DEBIT") {
     rename(
       df,
       Mean = X,
-      SD = Sd,
+      # SD = Sd,
       `Lower SD` = Sd_lower,
       `Include lower SD` = Sd_incl_lower,
       `Upper SD` = Sd_upper,
@@ -86,11 +96,16 @@ rename_after_testing <- function(df, name_test, percent) {
 }
 
 rename_after_audit <- function(df, name_test, percent) {
-  ratio_header <- if (percent) "percentages" else "means"
-  ratio_header <- paste(
-    "Mean probability of inconsistency for random",
-    ratio_header
-  )
+  if (name_test == "GRIM") {
+    ratio_header <- if (percent) "percentages" else "means"
+    ratio_header <- paste(
+      "Mean probability of inconsistency for random",
+      ratio_header
+    )
+  } else {
+    ratio_header <- NULL
+  }
+  # Rename by consistency test:
   `names<-`(
     df, switch(
       name_test,
@@ -136,6 +151,7 @@ rename_key_vars <- function(name) {
     name,
     "X"  = "Mean",
     "Sd" = "SD",
+    "sd" = "SD",
     name
   )
 }

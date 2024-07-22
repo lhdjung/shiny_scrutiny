@@ -7,7 +7,7 @@ source("scripts/functions.R")
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
-  title = "Error detection webapp",
+  title = "Error detection (beta 0.1)",
   id = "nav",
   sidebar = sidebar(
     conditionalPanel(
@@ -52,7 +52,7 @@ ui <- page_navbar(
       ),
       # Number of items:
       conditionalPanel(
-        "input.mean_percent === 'Mean'",
+        "input.name_test === 'GRIM' && input.mean_percent === 'Mean'",
         numericInput(
           "items",
           label = "Number of scale items",
@@ -65,7 +65,7 @@ ui <- page_navbar(
             of multiple items, enter the number of those items here."
           )
       ),
-      # # Item column merging:
+      # # TODO: implement item column merging
       # conditionalPanel(
       #   "input.merge_items != '' && (input.name_test === 'GRIM' || input.name_test === 'GRIMMER')",
       #   checkboxInput("merge_items", label = "Merge items column", value = TRUE)
@@ -175,6 +175,17 @@ ui <- page_navbar(
           present in the data or not."
         )
     ),
+    # Temporary note about partially incorrect info in the plot tooltips for
+    # DEBIT -- they are simply the same as for GRIM and GRIMMER.
+    conditionalPanel(
+      "input.name_test === 'DEBIT'",
+      card(
+        card_header("Please note"),
+        textOutput("debit_plot_tooltip_note"),
+        max_height = "500px",
+        full_screen = TRUE
+      )
+    ),
     # Basic analyses -- one wide card below:
     card(
       card_header("Summary (results by case)"),
@@ -222,7 +233,8 @@ ui <- page_navbar(
         are those found by varying that variable. \"Least step difference\" \
         is the minimum number of steps between the reported values \
         of a variable and the nearby consistent ones. \
-        They are split up by the direction of variation: upward and downward."
+        They are split up by the direction of variation: upward and downward.
+        \"NA\" indicates that no hits could be found in the respective way."
       )
   ),
   nav_panel(
@@ -359,6 +371,14 @@ server <- function(input, output) {
     }
   })
 
+  percent <- reactive({
+    if (input$name_test == "GRIM") {
+      input$mean_percent == "Percentage"
+    } else {
+      NULL
+    }
+  })
+
   # Display uploaded data:
   output$uploaded_data <- renderTable({
     user_data()
@@ -386,13 +406,13 @@ server <- function(input, output) {
         need(all(between(as.numeric(user_data()$sd), 0, 1)), msg_error)
       )
     }
-    # Test for consistency using a mapping function, then return the data frame:
+    # Test for consistency using a mapping function:
     out <- switch(
       input$name_test,
       "GRIM" = mutate(
         grim_map(
           user_data(), items = input$items,
-          percent = input$mean_percent == "Percentage",
+          percent = percent(),
           rounding = rounding_method(), threshold = rounding_threshold()
         ),
         ratio = if_else(ratio < 0, 0, ratio)
@@ -420,7 +440,7 @@ server <- function(input, output) {
     tested_df() |>
       rename_after_testing(
         input$name_test,
-        percent = input$mean_percent == "Percentage"
+        percent = percent()
       )
   })
 
@@ -448,7 +468,7 @@ server <- function(input, output) {
           user_data(),
           dispersion = parse_dispersion(input$dispersion),
           items = input$items,
-          percent = input$mean_percent == "Percentage",
+          percent = percent(),
           rounding = rounding_method(),
           threshold = rounding_threshold()
         ),
@@ -474,7 +494,7 @@ server <- function(input, output) {
     tested_df_seq() |>
       rename_after_testing_seq(
         input$name_test,
-        percent = input$mean_percent == "Percentage"
+        percent = percent()
       )
   })
 
@@ -562,7 +582,7 @@ server <- function(input, output) {
       tested_df() |>
         rename_after_testing(
           name_test = input$name_test,
-          percent = input$mean_percent == "Percentage"
+          percent = percent()
         ) |>
         clean_names() |>
         write_csv(file)
@@ -579,7 +599,7 @@ server <- function(input, output) {
     },
     content = function(file) {
       df_audit() |>
-        rename_after_audit(input$name_test, input$mean_percent == "Percentage") |>
+        rename_after_audit(input$name_test, percent()) |>
         clean_names() |>
         write_csv(file)
     }
@@ -598,7 +618,7 @@ server <- function(input, output) {
       tested_df_seq() |>
         rename_after_testing_seq(
           name_test = input$name_test,
-          percent = input$mean_percent == "Percentage"
+          percent = percent()
         ) |>
         clean_names() |>
         write_csv(file)
@@ -715,6 +735,13 @@ server <- function(input, output) {
     }
   )
 
+  output$debit_plot_tooltip_note <- renderText({
+    "If you hover over DEBIT plots, not all of the information
+    currently displyayed is correct. Blue and red do stand for
+    consistent and inconsistent value sets. All consistent value sets
+    lie on the parabola."
+  })
+
   output$text_about <- renderUI({
     htmltools::tagList(
       "This webapp was made by",
@@ -741,7 +768,7 @@ server <- function(input, output) {
       br(), br(),  # Newlines
       "Source code is",
       a("on Github", href = "https://github.com/lhdjung/shiny_scrutiny", .noWS = "after"),
-      "."
+      ". For feedback, open an issue there or write an email to: jung-lukas@gmx.net"
     )
   })
 }
