@@ -1,7 +1,24 @@
 
-# Load packages and helper functions:
-source("scripts/packages.R")
+library(shiny)
+library(bslib)
+library(rlang)
+library(ggplot2)
+library(dplyr)
+library(corrr)
+library(readr)
+library(stringr)
+library(janitor)
+library(scrutiny)
+
+
+# Load helper functions:
 source("scripts/functions.R")
+
+# # Deploy like this:
+# rsconnect::deployApp(
+#   appName = "scrutiny",
+#   account = "errors"
+# )
 
 
 # Define UI ---------------------------------------------------------------
@@ -323,18 +340,22 @@ server <- function(input, output) {
 
   output$text_info_upload <- renderUI({
     htmltools::tagList(
-      "Please upload a file in a tabular format such as CSV
-      (or check \"Use example data\" on the left).",
-      br(), br(),  # Newlines
-      "For GRIM and other consistency tests, it should have
-      columns with specific types of summary data:
-      All tests require mean and sample size columns.
-      GRIMMER and DEBIT additionally require a standard deviation
-      column. You may need to specify the columns (see sidebar left).
-      They will be shown renamed below. Duplicate analysis
-      doesn't require any specific columns.",
-      br(), br(),  # Newlines
-      "Hover over a panel for information about it."
+      p(
+        "Please upload a file in a tabular format such as CSV
+        (or check \"Use example data\" on the left)."
+      ),
+      p(
+        "For GRIM and other consistency tests, it should have
+        columns with specific types of summary data:
+        All tests require mean and sample size columns.
+        GRIMMER and DEBIT additionally require a standard deviation
+        column. You may need to specify the columns (see sidebar left).
+        They will be shown renamed below. Duplicate analysis
+        doesn't require any specific columns."
+      ),
+      p(
+        "Hover over a panel for information about it."
+      )
     )
   })
 

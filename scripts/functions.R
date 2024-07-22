@@ -19,11 +19,15 @@ select_rounding_method <- function(rounding) {
 
 plot_test_results <- function(df, name_test, size_text) {
   if (any(name_test == c("GRIM", "GRIMMER"))) {
-    grim_plot(df, rounding = rounding) +
-      theme(text = element_text(size = size_text))
+    suppressWarnings(
+      grim_plot(df, rounding = rounding) +
+        theme(text = element_text(size = size_text))
+    )
   } else if (name_test == "DEBIT") {
-    debit_plot(df, label_size = size_text * 0.285) +
-      theme_minimal(base_size = size_text)
+    suppressWarnings(
+      debit_plot(df, label_size = size_text * 0.285) +
+        theme_minimal(base_size = size_text)
+    )
   } else {
     stop("No visualization defined")
   }
