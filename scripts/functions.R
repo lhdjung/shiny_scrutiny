@@ -29,7 +29,7 @@ plot_test_results <- function(df, name_test, size_text) {
         theme_minimal(base_size = size_text)
     )
   } else {
-    stop("No visualization defined")
+    stop(paste("No visualization defined for", name_test))
   }
 }
 
@@ -38,7 +38,9 @@ parse_dispersion <- function(string) {
   tryCatch(
     eval(parse_expr(string)),
     error = function(cond) {
-      stop(safeError("Dispersion sequence couldn't be parsed."))
+      stop(safeError(paste0(
+        "Dispersion sequence \"", string, "\"couldn't be parsed."
+      )))
     }
   )
 }
