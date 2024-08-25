@@ -24,7 +24,7 @@ source("scripts/functions.R")
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
-  title = "Error detection (beta 0.1)",
+  title = "Error detection (beta 0.1.1)",
   id = "nav",
   sidebar = sidebar(
     conditionalPanel(
