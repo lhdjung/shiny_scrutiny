@@ -33,25 +33,6 @@ plot_test_results <- function(df, name_test, size_text) {
   }
 }
 
-parse_dispersion <- function(string) {
-  string <- paste0("c(", string, ")")
-  tryCatch(
-    eval(parse_expr(string)),
-    error = function(cond) {
-      stop(safeError("Dispersion sequence couldn't be parsed."))
-    }
-  )
-}
-
-check_dispersion_audit_seq <- function(dispersion) {
-  if (!is_seq_ascending(parse_dispersion(dispersion), test_linear = TRUE)) {
-    stop(safeError(paste(
-      "Summaries of dispersed sequences are only supported",
-      "if \"Dispersion\" is a linearly increasing sequence."
-    )))
-  }
-}
-
 # The if-tree can't be replaced by `switch()` here because this wouldn't work
 # with the assignment to `mean_or_percent`.
 rename_after_testing <- function(df, name_test, percent) {

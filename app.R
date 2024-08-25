@@ -123,13 +123,11 @@ ui <- page_navbar(
           step = 1
         )
       ),
-      textInput("dispersion", label = "Dispersion:", value = "1:5") |>
+      textInput("dispersion", label = "Dispersion:", value = "5") |>
         tooltip(
           "How far should the dispersed sequences be spread out?
-          You can define a sequence of steps. For example, the default
-          \"1:5\" goes five steps up and down from the reported values.
-          Alternatively, choose specific steps separated by commas,
-          like \"2, 5, 7\"."
+          You can define the number of steps. For example, the default
+          \"5\" goes five steps up and down from the reported values."
         ),
       numericInput(
         "plot_size_text",
@@ -487,7 +485,7 @@ server <- function(input, output) {
       "GRIM" = mutate(
         grim_map_seq(
           user_data(),
-          dispersion = parse_dispersion(input$dispersion),
+          dispersion = seq_len(input$dispersion),
           items = input$items,
           percent = percent(),
           rounding = rounding_method(),
@@ -497,14 +495,14 @@ server <- function(input, output) {
       ),
       "GRIMMER" = grimmer_map_seq(
         user_data(),
-        dispersion = parse_dispersion(input$dispersion),
+        dispersion = seq_len(input$dispersion),
         items = input$items,
         rounding = rounding_method(),
         threshold = rounding_threshold()
       ),
       "DEBIT" = debit_map_seq(
         user_data(),
-        dispersion = parse_dispersion(input$dispersion),
+        dispersion = seq_len(input$dispersion),
         rounding = rounding_method(),
         threshold = rounding_threshold()
       )
@@ -520,7 +518,6 @@ server <- function(input, output) {
   })
 
   output$output_df_audit_seq <- renderTable({
-    check_dispersion_audit_seq(input$dispersion)
     tested_df_seq() |>
       audit_seq() |>
       mutate(across(
@@ -655,7 +652,6 @@ server <- function(input, output) {
       )
     },
     content = function(file) {
-      check_dispersion_audit_seq(input$dispersion)
       tested_df_seq() |>
         audit_seq() |>
         rename_after_audit_seq(input$name_test) |>
