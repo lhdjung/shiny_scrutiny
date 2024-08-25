@@ -26,7 +26,13 @@ source("scripts/functions.R")
 ui <- page_navbar(
   title = "Error detection (beta 0.1.1)",
   id = "nav",
+
+  # Sidebar ---------------------------------------------------------------
+
   sidebar = sidebar(
+
+    # Sidebar: data upload ------------------------------------------------
+
     conditionalPanel(
       "input.nav === 'Data upload'",
       fileInput("input_df", "Upload your data:", accept = "text/plain"),
@@ -47,6 +53,9 @@ ui <- page_navbar(
           of decimal places from among them, whichever is greater."
         )
     ),
+
+    # Sidebar: consistency testing ----------------------------------------
+
     conditionalPanel(
       "input.nav === 'Consistency testing'",
       selectInput(
@@ -140,6 +149,9 @@ ui <- page_navbar(
       downloadButton("download_consistency_test_seq", "Download dispersed sequences"),
       downloadButton("download_consistency_test_audit_seq", "Download summary (dispersed sequences)"),
     ),
+
+    # Sidebar: duplicate analysis ----------------------------------------
+
     conditionalPanel(
       "input.nav === 'Duplicate analysis'",
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
@@ -151,6 +163,12 @@ ui <- page_navbar(
     ),
     conditionalPanel("input.nav === 'About'")
   ),
+
+
+  # Nav panel -----------------------------------------------------------
+
+  # Nav panel: data upload ----------------------------------------------
+
   nav_panel(
     "Data upload",
     card(
@@ -166,6 +184,9 @@ ui <- page_navbar(
         if they don't already have the names shown there."
       )
   ),
+
+# Nav panel: consistency testing -----------------------------------------
+
   nav_panel(
     "Consistency testing",
     # Basic analyses -- two long cards side by side:
@@ -252,6 +273,9 @@ ui <- page_navbar(
         \"NA\" indicates that no hits could be found in the respective way."
       )
   ),
+
+  # Nav panel: duplicate analysis --------------------------------------
+
   nav_panel(
     "Duplicate analysis",
     card(
@@ -317,6 +341,10 @@ ui <- page_navbar(
         these statistics should be interpreted with caution."
       )
   ),
+
+
+  # Nav panel: other elements ---------------------------------------------
+
   nav_panel(
     "About",
     uiOutput("text_about")
@@ -335,6 +363,8 @@ ui <- page_navbar(
 # Define server logic -----------------------------------------------------
 
 server <- function(input, output) {
+
+  # Server: data upload ---------------------------------------------------
 
   output$text_info_upload <- renderUI({
     htmltools::tagList(
@@ -402,6 +432,9 @@ server <- function(input, output) {
   output$uploaded_data <- renderTable({
     user_data()
   })
+
+
+  # Server: consistency testing -------------------------------------------
 
   rounding_method <- reactive({
     select_rounding_method(input$rounding)
@@ -532,6 +565,8 @@ server <- function(input, output) {
       plot_test_results(input$name_test, input$plot_size_text)
   )
 
+  # Server: duplicate analysis -------------------------------------------
+
   # Conduct the duplicate analyses:
   duplicate_count_df <- reactive({
     user_data() |>
@@ -582,7 +617,9 @@ server <- function(input, output) {
   })
 
 
-  # Download handlers (consistency testing) ---------------------------------
+  # Server: download handlers -----------------------------------------------
+
+  # Server: download handlers: consistency testing --------------------------
 
   # The name of a downloaded file will be "<input file name (without
   # extension)>_<selected consistency test>.csv". For example, after
@@ -660,8 +697,7 @@ server <- function(input, output) {
     }
   )
 
-
-  # Download handlers (duplication analysis) --------------------------------
+  # Server: download handlers: duplicate analysis --------------------------
 
   # Frequency table:
   output$download_duplicate_count <- downloadHandler(
@@ -751,6 +787,8 @@ server <- function(input, output) {
         write_csv(file)
     }
   )
+
+  # Server: Misc text -----------------------------------------------------
 
   output$debit_plot_tooltip_note <- renderText({
     "If you hover over DEBIT plots, not all of the information
