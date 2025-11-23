@@ -1,4 +1,3 @@
-
 library(shiny)
 library(bslib)
 library(rlang)
@@ -20,7 +19,6 @@ source("scripts/functions.R")
 #   account = "errors"
 # )
 
-
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
@@ -30,21 +28,25 @@ ui <- page_navbar(
   # Sidebar ---------------------------------------------------------------
 
   sidebar = sidebar(
-
     # Sidebar: data upload ------------------------------------------------
 
     conditionalPanel(
       "input.nav === 'Data upload'",
       fileInput("input_df", "Upload your data:", accept = "text/plain"),
       checkboxInput(
-        "use_example_data_pigs5", label = "Use example data", value = FALSE
+        "use_example_data_pigs5",
+        label = "Use example data",
+        value = FALSE
       ),
       # Identifying `x` and `n` columns:
       textInput("x", "Mean / percentage column:", "x"),
       textInput("sd", "Standard deviation column:", "sd"),
       textInput("n", "Sample size column:", "n"),
       numericInput(
-        "digits", label = "Restore decimal zeros:", value = 0L, min = 0
+        "digits",
+        label = "Restore decimal zeros:",
+        value = 0L,
+        min = 0
       ) |>
         tooltip(
           "Decimal numbers may have lost trailing zeros, but these are \
@@ -59,7 +61,8 @@ ui <- page_navbar(
     conditionalPanel(
       "input.nav === 'Consistency testing'",
       selectInput(
-        "name_test", "Consistency test:",
+        "name_test",
+        "Consistency test:",
         choices = c("GRIM", "GRIMMER", "DEBIT")
       ) |>
         tooltip("See \"About\" for more information."),
@@ -101,8 +104,16 @@ ui <- page_navbar(
         "rounding",
         label = "Rounding method:",
         choices = c(
-          "Up or down", "Up", "Down", "Up from...", "Down from...",
-          "Ceiling or floor", "Ceiling", "Floor", "Truncate", "Anti-truncate"
+          "Up or down",
+          "Up",
+          "Down",
+          "Up from...",
+          "Down from...",
+          "Ceiling or floor",
+          "Ceiling",
+          "Floor",
+          "Truncate",
+          "Anti-truncate"
         )
       ) |>
         tooltip(
@@ -145,9 +156,18 @@ ui <- page_navbar(
         min = 1
       ),
       downloadButton("download_consistency_test", "Download results by case"),
-      downloadButton("download_consistency_test_summary", "Download summary (results by case)"),
-      downloadButton("download_consistency_test_seq", "Download dispersed sequences"),
-      downloadButton("download_consistency_test_audit_seq", "Download summary (dispersed sequences)"),
+      downloadButton(
+        "download_consistency_test_summary",
+        "Download summary (results by case)"
+      ),
+      downloadButton(
+        "download_consistency_test_seq",
+        "Download dispersed sequences"
+      ),
+      downloadButton(
+        "download_consistency_test_audit_seq",
+        "Download summary (dispersed sequences)"
+      ),
     ),
 
     # Sidebar: duplicate analysis ----------------------------------------
@@ -155,15 +175,29 @@ ui <- page_navbar(
     conditionalPanel(
       "input.nav === 'Duplicate analysis'",
       downloadButton("download_duplicate_count", "Download\nfrequency table"),
-      downloadButton("download_duplicate_count_audit", "Download summary (frequency table)"),
-      downloadButton("download_duplicate_count_colpair", "Download duplicates across columns"),
-      downloadButton("download_duplicate_count_colpair_audit", "Download summary (duplicates across columns)"),
-      downloadButton("download_duplicate_tally", "Download value tally at original location"),
-      downloadButton("download_duplicate_tally_audit", "Download summary (value tally at original location)"),
+      downloadButton(
+        "download_duplicate_count_audit",
+        "Download summary (frequency table)"
+      ),
+      downloadButton(
+        "download_duplicate_count_colpair",
+        "Download duplicates across columns"
+      ),
+      downloadButton(
+        "download_duplicate_count_colpair_audit",
+        "Download summary (duplicates across columns)"
+      ),
+      downloadButton(
+        "download_duplicate_tally",
+        "Download value tally at original location"
+      ),
+      downloadButton(
+        "download_duplicate_tally_audit",
+        "Download summary (value tally at original location)"
+      ),
     ),
     conditionalPanel("input.nav === 'About'")
   ),
-
 
   # Nav panel -----------------------------------------------------------
 
@@ -185,7 +219,7 @@ ui <- page_navbar(
       )
   ),
 
-# Nav panel: consistency testing -----------------------------------------
+  # Nav panel: consistency testing -----------------------------------------
 
   nav_panel(
     "Consistency testing",
@@ -342,7 +376,6 @@ ui <- page_navbar(
       )
   ),
 
-
   # Nav panel: other elements ---------------------------------------------
 
   nav_panel(
@@ -359,11 +392,9 @@ ui <- page_navbar(
 )
 
 
-
 # Define server logic -----------------------------------------------------
 
 server <- function(input, output) {
-
   # Server: data upload ---------------------------------------------------
 
   output$text_info_upload <- renderUI({
@@ -389,7 +420,6 @@ server <- function(input, output) {
 
   # Capture the user-uploaded dataframe and, if necessary, rename some columns:
   user_data <- reactive({
-
     # Optionally, use the example `pigs5` data instead of user-uploaded data:
     if (input$use_example_data_pigs5) {
       out <- pigs5
@@ -433,7 +463,6 @@ server <- function(input, output) {
     user_data()
   })
 
-
   # Server: consistency testing -------------------------------------------
 
   rounding_method <- reactive({
@@ -463,18 +492,23 @@ server <- function(input, output) {
       input$name_test,
       "GRIM" = mutate(
         grim_map(
-          user_data(), items = input$items,
+          user_data(),
+          items = input$items,
           percent = percent(),
-          rounding = rounding_method(), threshold = rounding_threshold()
+          rounding = rounding_method(),
+          threshold = rounding_threshold()
         ),
         ratio = if_else(ratio < 0, 0, ratio)
       ),
       "GRIMMER" = grimmer_map(
-        user_data(), items = input$items,
-        rounding = rounding_method(), threshold = rounding_threshold()
+        user_data(),
+        items = input$items,
+        rounding = rounding_method(),
+        threshold = rounding_threshold()
       ),
       "DEBIT" = debit_map(
-        user_data(), rounding = rounding_method(),
+        user_data(),
+        rounding = rounding_method(),
         threshold = rounding_threshold()
       )
     )
@@ -555,7 +589,7 @@ server <- function(input, output) {
       audit_seq() |>
       mutate(across(
         .cols = starts_with("hits") | starts_with("diff"),
-        .fns  = as.integer
+        .fns = as.integer
       )) |>
       rename_after_audit_seq(input$name_test)
   })
@@ -615,7 +649,6 @@ server <- function(input, output) {
       audit() |>
       rename_duplicate_summary("tally")
   })
-
 
   # Server: download handlers -----------------------------------------------
 
@@ -804,25 +837,46 @@ server <- function(input, output) {
       "in R, using",
       a("shiny", href = "https://shiny.posit.co/"),
       "with",
-      a("bslib", href = "https://rstudio.github.io/bslib/index.html", .noWS = "after"),
+      a(
+        "bslib",
+        href = "https://rstudio.github.io/bslib/index.html",
+        .noWS = "after"
+      ),
       ".",
-      br(), br(),  # Newlines
+      br(),
+      br(), # Newlines
       "It applies tools from the",
       a("scrutiny", href = "https://lhdjung.github.io/scrutiny/"),
       "package for error detection in science. See",
-      a("Brown and Heathers (2017)", href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"),
+      a(
+        "Brown and Heathers (2017)",
+        href = "https://journals.sagepub.com/doi/abs/10.1177/1948550616673876"
+      ),
       "on GRIM,",
-      a("Allard (2018)", href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"),
+      a(
+        "Allard (2018)",
+        href = "https://aurelienallard.netlify.app/post/anaytic-grimmer-possibility-standard-deviations/"
+      ),
       "on GRIMMER, and",
       a("Heathers and Brown (2019)", href = "https://osf.io/5vb3u"),
       "on DEBIT.",
-      br(), br(),  # Newlines
+      br(),
+      br(), # Newlines
       "Hosting provided by",
-      a("ERROR: a bug bounty program for science", href = "https://error.reviews", .noWS = "after"),
+      a(
+        "ERROR: a bug bounty program for science",
+        href = "https://error.reviews",
+        .noWS = "after"
+      ),
       ", which is funded by the University of Bern \"Humans in Digital Transformation\" fund.",
-      br(), br(),  # Newlines
+      br(),
+      br(), # Newlines
       "Source code is",
-      a("on Github", href = "https://github.com/lhdjung/shiny_scrutiny", .noWS = "after"),
+      a(
+        "on Github",
+        href = "https://github.com/lhdjung/shiny_scrutiny",
+        .noWS = "after"
+      ),
       ". For feedback, open an issue there or write an email to: jung-lukas@gmx.net"
     )
   })

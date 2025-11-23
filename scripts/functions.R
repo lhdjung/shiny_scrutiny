@@ -1,4 +1,3 @@
-
 # Consistency testing -----------------------------------------------------
 
 select_rounding_method <- function(rounding) {
@@ -62,7 +61,7 @@ rename_after_testing <- function(df, name_test, percent) {
   } else if (name_test == "GRIMMER") {
     rename(
       df,
-      Mean = X#,
+      Mean = X #,
       # SD = Sd
     )
   } else if (name_test == "DEBIT") {
@@ -92,7 +91,8 @@ rename_after_audit <- function(df, name_test, percent) {
   }
   # Rename by consistency test:
   `names<-`(
-    df, switch(
+    df,
+    switch(
       name_test,
       "GRIM" = c(
         "Inconsistent cases",
@@ -134,7 +134,7 @@ rename_key_vars <- function(name) {
   name <- str_to_title(name)
   switch(
     name,
-    "X"  = "Mean",
+    "X" = "Mean",
     "Sd" = "SD",
     "sd" = "SD",
     name
@@ -187,30 +187,54 @@ rename_after_audit_seq <- function(df, name_test) {
     switch(
       name_test,
       "GRIM" = c(
-        "Mean", "N", "Consistency", "Total number of hits", "Hits for Mean",
-        "Hits for N", "Least step difference in Mean",
+        "Mean",
+        "N",
+        "Consistency",
+        "Total number of hits",
+        "Hits for Mean",
+        "Hits for N",
+        "Least step difference in Mean",
         "Least step difference in Mean (upward)",
-        "Least step difference in Mean (downward)", "Least step difference in N",
+        "Least step difference in Mean (downward)",
+        "Least step difference in N",
         "Least step difference in N (upward)",
         "Least step difference in N (downward)"
       ),
       "GRIMMER" = c(
-        "Mean", "SD", "N", "Consistency", "Total number of hits", "Hits for Mean",
-        "Hits for SD", "Hits for N", "Least step difference in Mean",
+        "Mean",
+        "SD",
+        "N",
+        "Consistency",
+        "Total number of hits",
+        "Hits for Mean",
+        "Hits for SD",
+        "Hits for N",
+        "Least step difference in Mean",
         "Least step difference in Mean (upward)",
-        "Least step difference in Mean (downward)", "Least step difference in SD",
+        "Least step difference in Mean (downward)",
+        "Least step difference in SD",
         "Least step difference in SD (upward)",
-        "Least step difference in SD (downward)", "Least step difference in N",
+        "Least step difference in SD (downward)",
+        "Least step difference in N",
         "Least step difference in N (upward)",
         "Least step difference in N (downward)"
       ),
       "DEBIT" = c(
-        "Mean", "SD", "N", "Consistency", "Total number of hits", "Hits for Mean",
-        "Hits for SD", "Hits for N", "Least step difference in Mean",
+        "Mean",
+        "SD",
+        "N",
+        "Consistency",
+        "Total number of hits",
+        "Hits for Mean",
+        "Hits for SD",
+        "Hits for N",
+        "Least step difference in Mean",
         "Least step difference in Mean (upward)",
-        "Least step difference in Mean (downward)", "Least step difference in SD",
+        "Least step difference in Mean (downward)",
+        "Least step difference in SD",
         "Least step difference in SD (upward)",
-        "Least step difference in SD (downward)", "Least step difference in N",
+        "Least step difference in SD (downward)",
+        "Least step difference in N",
         "Least step difference in N (upward)",
         "Least step difference in N (downward)"
       )
@@ -219,13 +243,18 @@ rename_after_audit_seq <- function(df, name_test) {
 }
 
 
-
 # Duplicate analysis ------------------------------------------------------
 
 rename_duplicate_count_df <- function(df) {
-  `names<-`(df, c(
-    "Value", "Frequency", "Locations", "Number of locations"
-  ))
+  `names<-`(
+    df,
+    c(
+      "Value",
+      "Frequency",
+      "Locations",
+      "Number of locations"
+    )
+  )
 }
 
 special_colnames_count_colpair <- c(
@@ -237,10 +266,14 @@ special_colnames_count_colpair <- c(
 )
 
 rename_duplicate_count_colpair_df <- function(df) {
-  `names<-`(df, c(
-      "Original column 1", "Original column 2",
+  `names<-`(
+    df,
+    c(
+      "Original column 1",
+      "Original column 2",
       special_colnames_count_colpair
-    ))
+    )
+  )
 }
 
 rename_duplicate_summary <- function(df, function_ending) {
@@ -250,10 +283,19 @@ rename_duplicate_summary <- function(df, function_ending) {
     "count_colpair" = special_colnames_count_colpair,
     "tally" = c(df$term[seq_along(df$term) - 1L], "Total")
   )
-  `names<-`(df, c(
-    "Term", "Mean", "SD", "Median", "Minimum", "Maximum",
-    "Number of missing values", "Proportion of missing values"
-  ))
+  `names<-`(
+    df,
+    c(
+      "Term",
+      "Mean",
+      "SD",
+      "Median",
+      "Minimum",
+      "Maximum",
+      "Number of missing values",
+      "Proportion of missing values"
+    )
+  )
 }
 
 
@@ -261,9 +303,10 @@ rename_duplicate_summary <- function(df, function_ending) {
 
 # Predicate to test if all elements of a vector are whole numbers. This function
 # uses some code from the `?integer` documentation.
-is_whole_number <- function (x, tolerance = .Machine$double.eps^0.5) {
+is_whole_number <- function(x, tolerance = .Machine$double.eps^0.5) {
   abs(x - round(x)) < tolerance
 }
+
 
 format_after_upload <- function(df, digits) {
   # Which columns can be coerced to numeric? The key question is whether
@@ -286,22 +329,27 @@ format_after_upload <- function(df, digits) {
   # zeros because they presumably never had any decimal numbers to begin with.)
   # Decimal numbers are padded to `width_max` with trailing zeros. Disclaimer:
   # The anonymous function uses some code from the `?integer` documentation.
-  mutate(df, across(
-    .cols = all_of(indices_numeric_like_cols),
-    .fns  = function(x) {
-      if (all(is_whole_number(as.numeric(x)))) {
-        as.integer(x)
-      } else {
-        restore_zeros(x, width = width_max)
+  mutate(
+    df,
+    across(
+      .cols = all_of(indices_numeric_like_cols),
+      .fns = function(x) {
+        if (all(is_whole_number(as.numeric(x)))) {
+          as.integer(x)
+        } else {
+          restore_zeros(x, width = width_max)
+        }
       }
-    }
-  ))
+    )
+  )
 }
 
-format_download_file_name <- function(name_input_file, name_technique,
-                                      addendum = NULL) {
+format_download_file_name <- function(
+  name_input_file,
+  name_technique,
+  addendum = NULL
+) {
   name_input_file |>
     str_remove("\\.[^.]+$") |>
     paste0("_", name_technique, addendum, ".csv")
 }
-
