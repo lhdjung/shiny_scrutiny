@@ -164,7 +164,7 @@ ui <- page_navbar(
       downloadButton("download_consistency_test", "Download results by case"),
       downloadButton(
         "download_consistency_test_summary",
-        "Download summary (results by case)"
+        "Download summary of results by case"
       ),
       downloadButton(
         "download_consistency_test_seq",
@@ -290,7 +290,7 @@ ui <- page_navbar(
     ),
     # Basic analyses -- one wide card below:
     card(
-      card_header("Summary (results by case)"),
+      card_header("Summary of results by case"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
         tags$style(
@@ -305,7 +305,7 @@ ui <- page_navbar(
     layout_column_wrap(
       width = 0.5,
       card(
-        card_header("Dispersed sequences"),
+        card_header("Results of dispersed sequences"),
         div(
           style = "overflow-x: auto; display: flex; justify-content: center;",
           tags$style(
@@ -323,7 +323,7 @@ ui <- page_navbar(
           constant each time."
         ),
       card(
-        card_header("Visualization (dispersed sequences)"),
+        card_header("Visualization of dispersed sequences"),
         plotOutput("output_plot_seq"),
         max_height = "500px",
         full_screen = TRUE
@@ -337,7 +337,7 @@ ui <- page_navbar(
     ),
     # Further analyses -- one wide card below:
     card(
-      card_header("Summary (dispersed sequences)"),
+      card_header("Summary of dispersed sequences"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
         tags$style(
@@ -626,7 +626,7 @@ server <- function(input, output) {
       plot_test_results(input$name_test, input$plot_size_text)
   )
 
-  # Dispersed sequences:
+  # Results of dispersed sequences:
 
   tested_df_seq <- reactive({
     switch(
@@ -755,7 +755,7 @@ server <- function(input, output) {
         write_csv(file)
     }
   )
-  # Summary (results by case):
+  # Summary of results by case:
   output$download_consistency_test_summary <- downloadHandler(
     filename = function() {
       format_download_file_name(
@@ -772,7 +772,7 @@ server <- function(input, output) {
     }
   )
 
-  # Dispersed sequences:
+  # Results of dispersed sequences:
   output$download_consistency_test_seq <- downloadHandler(
     filename = function() {
       format_download_file_name(
