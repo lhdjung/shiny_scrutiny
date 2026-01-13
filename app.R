@@ -228,6 +228,17 @@ ui <- page_navbar(
 
   nav_panel(
     "Consistency testing",
+
+    # Warning note for GRIMMER test 3 reliability
+    conditionalPanel(
+      "input.name_test === 'GRIMMER'",
+      card(
+        card_header(tags$strong("Warning")),
+        uiOutput("grimmer_test3_warning"),
+        full_screen = TRUE
+      )
+    ),
+
     # Basic analyses -- two long cards side by side:
     layout_column_wrap(
       width = 0.5,
@@ -826,6 +837,12 @@ server <- function(input, output) {
     currently displyayed is correct. Blue and red do stand for
     consistent and inconsistent value sets. All consistent value sets
     lie on the parabola."
+  })
+
+  output$grimmer_test3_warning <- renderUI({
+    HTML(
+      "The results of GRIMMER's test 3 are currently not reliable. This will be fixed in the future. (The first two tests and GRIM are not affected.) For more information, see: <a href='https://github.com/lhdjung/scrutiny/issues/80'>https://github.com/lhdjung/scrutiny/issues/80</a>"
+    )
   })
 
   output$text_about <- renderUI({
