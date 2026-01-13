@@ -24,8 +24,9 @@ plot_test_results <- function(df, name_test, size_text) {
     )
   } else if (name_test == "DEBIT") {
     suppressWarnings(
-      debit_plot(df, label_size = size_text * 0.285) +
-        theme_minimal(base_size = size_text, aspect.ratio = 1)
+      debit_plot(df, label_size = size_text * 0.285, show_outer_boxes = FALSE) +
+        theme_minimal(base_size = size_text) +
+        theme(aspect.ratio = 1)
     )
   } else {
     stop(paste("No visualization defined for", name_test))
