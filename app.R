@@ -251,8 +251,8 @@ ui <- page_navbar(
     ),
 
     # Basic analyses -- two long cards side by side:
-    layout_column_wrap(
-      width = 0.5,
+    layout_columns(
+      col_widths = c(7, 5),
       card(
         card_header("Results by case"),
         div(
@@ -305,8 +305,8 @@ ui <- page_navbar(
     ) |>
       tooltip("Simple summaries of testing your data."),
     # Further analyses -- two long cards side by side:
-    layout_column_wrap(
-      width = 0.5,
+    layout_columns(
+      col_widths = c(7, 5),
       card(
         card_header("Results of dispersed sequences"),
         div(
