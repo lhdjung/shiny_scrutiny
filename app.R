@@ -24,6 +24,7 @@ source("scripts/functions.R")
 ui <- page_navbar(
   title = "Error detection (beta 0.1.1)",
   id = "nav",
+  header = tags$style(".card-header { text-align: center; }"),
 
   # Sidebar ---------------------------------------------------------------
 
@@ -220,7 +221,9 @@ ui <- page_navbar(
         card_header("Data preview"),
         div(
           style = "overflow-x: auto; display: flex; justify-content: center;",
-          tags$style("#uploaded_data table { width: auto !important; margin: 0; } #uploaded_data th, #uploaded_data td { padding: 8px 30px; }"),
+          tags$style(
+            "#uploaded_data table { width: auto !important; margin: 0; } #uploaded_data th, #uploaded_data td { padding: 8px 30px; }"
+          ),
           tableOutput("uploaded_data")
         )
       ) |>
@@ -253,7 +256,9 @@ ui <- page_navbar(
         card_header("Results by case"),
         div(
           style = "overflow-x: auto; display: flex; justify-content: center;",
-          tags$style("#output_df table { width: auto !important; margin: 0; } #output_df th, #output_df td { padding: 8px 30px; }"),
+          tags$style(
+            "#output_df table { width: auto !important; margin: 0; } #output_df th, #output_df td { padding: 8px 30px; }"
+          ),
           tableOutput("output_df")
         ),
         max_height = "500px",
@@ -288,7 +293,9 @@ ui <- page_navbar(
       card_header("Summary (results by case)"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_df_audit table { width: auto !important; margin: 0; } #output_df_audit th, #output_df_audit td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_df_audit table { width: auto !important; margin: 0; } #output_df_audit th, #output_df_audit td { padding: 8px 30px; }"
+        ),
         tableOutput("output_df_audit")
       ),
       full_screen = TRUE
@@ -301,7 +308,9 @@ ui <- page_navbar(
         card_header("Dispersed sequences"),
         div(
           style = "overflow-x: auto; display: flex; justify-content: center;",
-          tags$style("#output_df_seq table { width: auto !important; margin: 0; } #output_df_seq th, #output_df_seq td { padding: 8px 30px; }"),
+          tags$style(
+            "#output_df_seq table { width: auto !important; margin: 0; } #output_df_seq th, #output_df_seq td { padding: 8px 30px; }"
+          ),
           tableOutput("output_df_seq")
         ),
         max_height = "500px",
@@ -331,7 +340,9 @@ ui <- page_navbar(
       card_header("Summary (dispersed sequences)"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_df_audit_seq table { width: auto !important; margin: 0; } #output_df_audit_seq th, #output_df_audit_seq td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_df_audit_seq table { width: auto !important; margin: 0; } #output_df_audit_seq th, #output_df_audit_seq td { padding: 8px 30px; }"
+        ),
         tableOutput("output_df_audit_seq")
       ),
       full_screen = TRUE
@@ -355,7 +366,9 @@ ui <- page_navbar(
       card_header("Frequency table"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_duplicate_count table { width: auto !important; margin: 0; } #output_duplicate_count th, #output_duplicate_count td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_duplicate_count table { width: auto !important; margin: 0; } #output_duplicate_count th, #output_duplicate_count td { padding: 8px 30px; }"
+        ),
         tableOutput("output_duplicate_count")
       ),
       full_screen = TRUE
@@ -368,7 +381,9 @@ ui <- page_navbar(
       card_header("Summary (frequency table)"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_duplicate_count_summary table { width: auto !important; margin: 0; } #output_duplicate_count_summary th, #output_duplicate_count_summary td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_duplicate_count_summary table { width: auto !important; margin: 0; } #output_duplicate_count_summary th, #output_duplicate_count_summary td { padding: 8px 30px; }"
+        ),
         tableOutput("output_duplicate_count_summary")
       ),
       full_screen = TRUE
@@ -381,7 +396,9 @@ ui <- page_navbar(
       card_header("Duplicates across columns"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_duplicate_count_colpair table { width: auto !important; margin: 0; } #output_duplicate_count_colpair th, #output_duplicate_count_colpair td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_duplicate_count_colpair table { width: auto !important; margin: 0; } #output_duplicate_count_colpair th, #output_duplicate_count_colpair td { padding: 8px 30px; }"
+        ),
         tableOutput("output_duplicate_count_colpair")
       ),
       full_screen = TRUE
@@ -399,7 +416,9 @@ ui <- page_navbar(
       card_header("Summary (duplicates across columns)"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_duplicate_count_colpair_summary table { width: auto !important; margin: 0; } #output_duplicate_count_colpair_summary th, #output_duplicate_count_colpair_summary td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_duplicate_count_colpair_summary table { width: auto !important; margin: 0; } #output_duplicate_count_colpair_summary th, #output_duplicate_count_colpair_summary td { padding: 8px 30px; }"
+        ),
         tableOutput("output_duplicate_count_colpair_summary")
       ),
       full_screen = TRUE
@@ -412,7 +431,9 @@ ui <- page_navbar(
       card_header("Value tally at original location"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_duplicate_tally table { width: auto !important; margin: 0; } #output_duplicate_tally th, #output_duplicate_tally td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_duplicate_tally table { width: auto !important; margin: 0; } #output_duplicate_tally th, #output_duplicate_tally td { padding: 8px 30px; }"
+        ),
         tableOutput("output_duplicate_tally")
       ),
       full_screen = TRUE
@@ -427,7 +448,9 @@ ui <- page_navbar(
       card_header("Summary (value tally at original location)"),
       div(
         style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style("#output_duplicate_tally_summary table { width: auto !important; margin: 0; } #output_duplicate_tally_summary th, #output_duplicate_tally_summary td { padding: 8px 30px; }"),
+        tags$style(
+          "#output_duplicate_tally_summary table { width: auto !important; margin: 0; } #output_duplicate_tally_summary th, #output_duplicate_tally_summary td { padding: 8px 30px; }"
+        ),
         tableOutput("output_duplicate_tally_summary")
       ),
       full_screen = TRUE
