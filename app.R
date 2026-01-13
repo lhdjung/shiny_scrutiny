@@ -210,18 +210,25 @@ ui <- page_navbar(
 
   nav_panel(
     "Data upload",
-    card(
-      card_header("Information"),
-      uiOutput("text_info_upload")
-    ),
-    card(
-      card_header("Data preview"),
-      tableOutput("uploaded_data")
-    ) |>
-      tooltip(
-        "Your data. Rename columns in the sidebar on the left \
-        if they don't already have the names shown there."
-      )
+    div(
+      style = "max-width: 75%; margin: 0 auto;",
+      card(
+        card_header("Information"),
+        uiOutput("text_info_upload")
+      ),
+      card(
+        card_header("Data preview"),
+        div(
+          style = "overflow-x: auto; display: flex; justify-content: center;",
+          tags$style("#uploaded_data table { width: auto !important; margin: 0; } #uploaded_data th, #uploaded_data td { padding: 8px 30px; }"),
+          tableOutput("uploaded_data")
+        )
+      ) |>
+        tooltip(
+          "Your data. Rename columns in the sidebar on the left \
+          if they don't already have the names shown there."
+        )
+    )
   ),
 
   # Nav panel: consistency testing -----------------------------------------
