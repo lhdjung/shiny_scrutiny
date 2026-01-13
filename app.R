@@ -251,7 +251,11 @@ ui <- page_navbar(
       width = 0.5,
       card(
         card_header("Results by case"),
-        tableOutput("output_df"),
+        div(
+          style = "overflow-x: auto; display: flex; justify-content: center;",
+          tags$style("#output_df table { width: auto !important; margin: 0; } #output_df th, #output_df td { padding: 8px 30px; }"),
+          tableOutput("output_df")
+        ),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -282,7 +286,11 @@ ui <- page_navbar(
     # Basic analyses -- one wide card below:
     card(
       card_header("Summary (results by case)"),
-      tableOutput("output_df_audit"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_df_audit table { width: auto !important; margin: 0; } #output_df_audit th, #output_df_audit td { padding: 8px 30px; }"),
+        tableOutput("output_df_audit")
+      ),
       full_screen = TRUE
     ) |>
       tooltip("Simple summaries of testing your data."),
@@ -291,7 +299,11 @@ ui <- page_navbar(
       width = 0.5,
       card(
         card_header("Dispersed sequences"),
-        tableOutput("output_df_seq"),
+        div(
+          style = "overflow-x: auto; display: flex; justify-content: center;",
+          tags$style("#output_df_seq table { width: auto !important; margin: 0; } #output_df_seq th, #output_df_seq td { padding: 8px 30px; }"),
+          tableOutput("output_df_seq")
+        ),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -317,7 +329,11 @@ ui <- page_navbar(
     # Further analyses -- one wide card below:
     card(
       card_header("Summary (dispersed sequences)"),
-      tableOutput("output_df_audit_seq"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_df_audit_seq table { width: auto !important; margin: 0; } #output_df_audit_seq th, #output_df_audit_seq td { padding: 8px 30px; }"),
+        tableOutput("output_df_audit_seq")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -337,7 +353,11 @@ ui <- page_navbar(
     "Duplicate analysis",
     card(
       card_header("Frequency table"),
-      tableOutput("output_duplicate_count"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_duplicate_count table { width: auto !important; margin: 0; } #output_duplicate_count th, #output_duplicate_count td { padding: 8px 30px; }"),
+        tableOutput("output_duplicate_count")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -346,7 +366,11 @@ ui <- page_navbar(
       ),
     card(
       card_header("Summary (frequency table)"),
-      tableOutput("output_duplicate_count_summary"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_duplicate_count_summary table { width: auto !important; margin: 0; } #output_duplicate_count_summary th, #output_duplicate_count_summary td { padding: 8px 30px; }"),
+        tableOutput("output_duplicate_count_summary")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -355,7 +379,11 @@ ui <- page_navbar(
       ),
     card(
       card_header("Duplicates across columns"),
-      tableOutput("output_duplicate_count_colpair"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_duplicate_count_colpair table { width: auto !important; margin: 0; } #output_duplicate_count_colpair th, #output_duplicate_count_colpair td { padding: 8px 30px; }"),
+        tableOutput("output_duplicate_count_colpair")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -369,7 +397,11 @@ ui <- page_navbar(
       ),
     card(
       card_header("Summary (duplicates across columns)"),
-      tableOutput("output_duplicate_count_colpair_summary"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_duplicate_count_colpair_summary table { width: auto !important; margin: 0; } #output_duplicate_count_colpair_summary th, #output_duplicate_count_colpair_summary td { padding: 8px 30px; }"),
+        tableOutput("output_duplicate_count_colpair_summary")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -378,7 +410,11 @@ ui <- page_navbar(
       ),
     card(
       card_header("Value tally at original location"),
-      tableOutput("output_duplicate_tally"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_duplicate_tally table { width: auto !important; margin: 0; } #output_duplicate_tally th, #output_duplicate_tally td { padding: 8px 30px; }"),
+        tableOutput("output_duplicate_tally")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -389,7 +425,11 @@ ui <- page_navbar(
       ),
     card(
       card_header("Summary (value tally at original location)"),
-      tableOutput("output_duplicate_tally_summary"),
+      div(
+        style = "overflow-x: auto; display: flex; justify-content: center;",
+        tags$style("#output_duplicate_tally_summary table { width: auto !important; margin: 0; } #output_duplicate_tally_summary th, #output_duplicate_tally_summary td { padding: 8px 30px; }"),
+        tableOutput("output_duplicate_tally_summary")
+      ),
       full_screen = TRUE
     ) |>
       tooltip(
