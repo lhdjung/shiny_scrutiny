@@ -1,3 +1,8 @@
+# General helpers ---------------------------------------------------------
+
+set_names <- `names<-`
+
+
 # Consistency testing -----------------------------------------------------
 
 select_rounding_method <- function(rounding) {
@@ -91,9 +96,8 @@ rename_after_audit <- function(df, name_test, percent) {
     ratio_header <- NULL
   }
   # Rename by consistency test:
-  `names<-`(
-    df,
-    switch(
+  df |>
+    set_names(switch(
       name_test,
       "GRIM" = c(
         "Inconsistent cases",
@@ -121,8 +125,7 @@ rename_after_audit <- function(df, name_test, percent) {
         "Mean of SDs",
         "Distinct sample sizes"
       )
-    )
-  )
+    ))
 }
 
 # This function MUST contain renaming instructions for all key variables of all
@@ -183,9 +186,8 @@ rename_after_testing_seq <- function(df, name_test, percent) {
 
 
 rename_after_audit_seq <- function(df, name_test) {
-  `names<-`(
-    df,
-    switch(
+  df |>
+    set_names(switch(
       name_test,
       "GRIM" = c(
         "Mean",
@@ -239,23 +241,20 @@ rename_after_audit_seq <- function(df, name_test) {
         "Least step difference in N (upward)",
         "Least step difference in N (downward)"
       )
-    )
-  )
+    ))
 }
 
 
 # Duplicate analysis ------------------------------------------------------
 
 rename_duplicate_count_df <- function(df) {
-  `names<-`(
-    df,
-    c(
+  df |>
+    set_names(c(
       "Value",
       "Frequency",
       "Locations",
       "Number of locations"
-    )
-  )
+    ))
 }
 
 special_colnames_count_colpair <- c(
@@ -267,14 +266,12 @@ special_colnames_count_colpair <- c(
 )
 
 rename_duplicate_count_colpair_df <- function(df) {
-  `names<-`(
-    df,
-    c(
+  df |>
+    set_names(c(
       "Original column 1",
       "Original column 2",
       special_colnames_count_colpair
-    )
-  )
+    ))
 }
 
 rename_duplicate_summary <- function(df, function_ending) {
@@ -284,9 +281,9 @@ rename_duplicate_summary <- function(df, function_ending) {
     "count_colpair" = special_colnames_count_colpair,
     "tally" = c(df$term[seq_along(df$term) - 1L], "Total")
   )
-  `names<-`(
-    df,
-    c(
+
+  df |>
+    set_names(c(
       "Term",
       "Mean",
       "SD",
@@ -295,8 +292,7 @@ rename_duplicate_summary <- function(df, function_ending) {
       "Maximum",
       "Number of missing values",
       "Proportion of missing values"
-    )
-  )
+    ))
 }
 
 
