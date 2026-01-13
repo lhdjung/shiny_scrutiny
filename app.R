@@ -172,7 +172,7 @@ ui <- page_navbar(
       downloadButton(
         "download_consistency_test_audit_seq",
         "Download summary (dispersed sequences)"
-      ),
+      )
     ),
 
     # Sidebar: duplicate analysis ----------------------------------------
@@ -199,7 +199,7 @@ ui <- page_navbar(
       downloadButton(
         "download_duplicate_tally_audit",
         "Download summary (value tally at original location)"
-      ),
+      )
     ),
     conditionalPanel("input.nav === 'About'")
   ),
@@ -430,7 +430,7 @@ server <- function(input, output) {
       out <- pigs5
     } else {
       validate(need(input$input_df, "Upload data first."))
-      out <- read_delim(input$input_df$datapath)
+      out <- read_delim(input$input_df$datapath, show_col_types = FALSE)
     }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
@@ -495,15 +495,12 @@ server <- function(input, output) {
     # Test for consistency using a mapping function:
     out <- switch(
       input$name_test,
-      "GRIM" = mutate(
-        grim_map(
-          user_data(),
-          items = input$items,
-          percent = percent(),
-          rounding = rounding_method(),
-          threshold = rounding_threshold()
-        ),
-        ratio = if_else(ratio < 0, 0, ratio)
+      "GRIM" = grim_map(
+        user_data(),
+        items = input$items,
+        percent = percent(),
+        rounding = rounding_method(),
+        threshold = rounding_threshold()
       ),
       "GRIMMER" = grimmer_map(
         user_data(),
@@ -521,10 +518,9 @@ server <- function(input, output) {
     # sample size ("n"). It should be integer because, as a double, the app
     # would misleadingly display it with decimal zeros, like, e.g., "5.00".
     if (any(names(out) == "n")) {
-      mutate(out, n = as.integer(n))
-    } else {
-      out
+      out <- mutate(out, n = as.integer(n))
     }
+    out
   })
 
   output$output_df <- renderTable({
@@ -554,27 +550,24 @@ server <- function(input, output) {
   tested_df_seq <- reactive({
     switch(
       input$name_test,
-      "GRIM" = mutate(
-        grim_map_seq(
-          user_data(),
-          dispersion = seq_len(input$dispersion),
-          items = input$items,
-          percent = percent(),
-          rounding = rounding_method(),
-          threshold = rounding_threshold()
-        ),
-        ratio = if_else(ratio < 0, 0, ratio)
+      "GRIM" = grim_map_seq(
+        user_data(),
+        dispersion = seq_len(as.integer(input$dispersion)),
+        items = input$items,
+        percent = percent(),
+        rounding = rounding_method(),
+        threshold = rounding_threshold()
       ),
       "GRIMMER" = grimmer_map_seq(
         user_data(),
-        dispersion = seq_len(input$dispersion),
+        dispersion = seq_len(as.integer(input$dispersion)),
         items = input$items,
         rounding = rounding_method(),
         threshold = rounding_threshold()
       ),
       "DEBIT" = debit_map_seq(
         user_data(),
-        dispersion = seq_len(input$dispersion),
+        dispersion = seq_len(as.integer(input$dispersion)),
         rounding = rounding_method(),
         threshold = rounding_threshold()
       )

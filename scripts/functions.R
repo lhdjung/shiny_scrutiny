@@ -57,7 +57,7 @@ rename_after_testing <- function(df, name_test, percent) {
       "{mean_or_percent}" := X,
       # # Not tested by GRIM but can still occur in the data
       # SD = Sd,
-      "{ratio_header}" := Ratio
+      "{ratio_header}" := Probability
     )
   } else if (name_test == "GRIMMER") {
     rename(
@@ -149,7 +149,7 @@ rename_after_testing_seq <- function(df, name_test, percent) {
     df <- rename(
       df,
       "{mean_or_percent}" := X,
-      `Probability of inconsistency for random values` = Ratio,
+      `Probability of inconsistency for random values` = Probability,
       `Step difference to reported` = Diff_var,
       Variable = Var
     )
