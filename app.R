@@ -113,8 +113,6 @@ ui <- page_navbar(
           "Up or down",
           "Up",
           "Down",
-          "Up from...",
-          "Down from...",
           "Ceiling or floor",
           "Ceiling",
           "Floor",
@@ -127,28 +125,6 @@ ui <- page_navbar(
           reconstructing numbers rounded in the chosen way (or in either \
           of two ways, as with the permissive default \"Up or down\")."
         ),
-      conditionalPanel(
-        "input.rounding === 'Up from...'",
-        numericInput(
-          "rounding_up_from",
-          label = "Round up from:",
-          value = 5,
-          min = 0,
-          max = 9,
-          step = 1
-        )
-      ),
-      conditionalPanel(
-        "input.rounding === 'Down from...'",
-        numericInput(
-          "rounding_down_from",
-          label = "Round down from:",
-          value = 5,
-          min = 0,
-          max = 9,
-          step = 1
-        )
-      ),
       textInput("dispersion", label = "Dispersion:", value = "5") |>
         tooltip(
           "How far should the dispersed sequences be spread out?
@@ -489,15 +465,6 @@ server <- function(input, output) {
     select_rounding_method(input$rounding)
   })
 
-  rounding_threshold <- reactive({
-    switch(
-      rounding_method(),
-      "up_from" = input$rounding_up_from,
-      "down_from" = input$rounding_down_from,
-      5
-    )
-  })
-
   # Basic analyses:
   tested_df <- reactive({
     if (input$name_test == "DEBIT") {
@@ -507,28 +474,30 @@ server <- function(input, output) {
         need(all(between(as.numeric(user_data()$sd), 0, 1)), msg_error)
       )
     }
-    # Test for consistency using a mapping function:
+
+    # Get rounding method (no threshold needed for available methods)
+    method <- rounding_method()
+
+    # Test for consistency using a mapping function
     out <- switch(
       input$name_test,
       "GRIM" = grim_map(
         user_data(),
         items = input$items,
         percent = percent(),
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+        rounding = method
       ),
       "GRIMMER" = grimmer_map(
         user_data(),
         items = input$items,
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+        rounding = method
       ),
       "DEBIT" = debit_map(
         user_data(),
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+        rounding = method
       )
     )
+
     # Many consistency tests have a key argument / column corresponding to the
     # sample size ("n"). It should be integer because, as a double, the app
     # would misleadingly display it with decimal zeros, like, e.g., "5.00".
@@ -557,12 +526,18 @@ server <- function(input, output) {
 
   output$output_plot <- renderPlot(
     tested_df() |>
-      plot_test_results(input$name_test, input$plot_size_text)
+      plot_test_results(
+        input$name_test,
+        input$plot_size_text
+      )
   )
 
   # Results of dispersed sequences:
 
   tested_df_seq <- reactive({
+    # Get rounding method (no threshold needed for available methods)
+    method <- rounding_method()
+
     switch(
       input$name_test,
       "GRIM" = grim_map_seq(
@@ -570,21 +545,18 @@ server <- function(input, output) {
         dispersion = seq_len(as.integer(input$dispersion)),
         items = input$items,
         percent = percent(),
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+        rounding = method
       ),
       "GRIMMER" = grimmer_map_seq(
         user_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
         items = input$items,
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+        rounding = method
       ),
       "DEBIT" = debit_map_seq(
         user_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
-        rounding = rounding_method(),
-        threshold = rounding_threshold()
+        rounding = method
       )
     )
   })
@@ -609,7 +581,10 @@ server <- function(input, output) {
 
   output$output_plot_seq <- renderPlot(
     tested_df_seq() |>
-      plot_test_results(input$name_test, input$plot_size_text)
+      plot_test_results(
+        input$name_test,
+        input$plot_size_text
+      )
   )
 
   # Server: duplicate analysis -------------------------------------------
