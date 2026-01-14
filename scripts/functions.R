@@ -296,6 +296,21 @@ rename_duplicate_summary <- function(df, function_ending) {
 }
 
 
+# UI helpers --------------------------------------------------------------
+
+# Create a centered, scrollable table div with custom styling
+styled_table_div <- function(output_id) {
+  div(
+    style = "overflow-x: auto; display: flex; justify-content: center;",
+    tags$style(paste(
+      paste0("#", output_id, " table { width: auto !important; margin: 0; }"),
+      paste0("#", output_id, " th, #", output_id, " td { padding: 8px 30px; }")
+    )),
+    tableOutput(output_id)
+  )
+}
+
+
 # Other -------------------------------------------------------------------
 
 # Predicate to test if all elements of a vector are whole numbers. This function

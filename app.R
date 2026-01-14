@@ -219,14 +219,7 @@ ui <- page_navbar(
       ),
       card(
         card_header("Data preview"),
-        div(
-          style = "overflow-x: auto; display: flex; justify-content: center;",
-          tags$style(paste(
-            "#uploaded_data table { width: auto !important; margin: 0; }",
-            "#uploaded_data th, #uploaded_data td { padding: 8px 30px; }"
-          )),
-          tableOutput("uploaded_data")
-        )
+        styled_table_div("uploaded_data")
       ) |>
         tooltip(
           "Your data. Rename columns in the sidebar on the left \
@@ -255,14 +248,7 @@ ui <- page_navbar(
       col_widths = c(7, 5),
       card(
         card_header("Results by case"),
-        div(
-          style = "overflow-x: auto; display: flex; justify-content: center;",
-          tags$style(paste(
-            "#output_df table { width: auto !important; margin: 0; }",
-            "#output_df th, #output_df td { padding: 8px 30px; }"
-          )),
-          tableOutput("output_df")
-        ),
+        styled_table_div("output_df"),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -293,14 +279,7 @@ ui <- page_navbar(
     # Basic analyses -- one wide card below:
     card(
       card_header("Summary of results by case"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_df_audit table { width: auto !important; margin: 0; }",
-          "#output_df_audit th, #output_df_audit td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_df_audit")
-      ),
+      styled_table_div("output_df_audit"),
       full_screen = TRUE
     ) |>
       tooltip("Simple summaries of testing your data."),
@@ -309,14 +288,7 @@ ui <- page_navbar(
       col_widths = c(7, 5),
       card(
         card_header("Results of dispersed sequences"),
-        div(
-          style = "overflow-x: auto; display: flex; justify-content: center;",
-          tags$style(paste(
-            "#output_df_seq table { width: auto !important; margin: 0; }",
-            "#output_df_seq th, #output_df_seq td { padding: 8px 30px; }"
-          )),
-          tableOutput("output_df_seq")
-        ),
+        styled_table_div("output_df_seq"),
         max_height = "500px",
         full_screen = TRUE
       ) |>
@@ -342,15 +314,7 @@ ui <- page_navbar(
     # Further analyses -- one wide card below:
     card(
       card_header("Summary of dispersed sequences"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_df_audit_seq table { width: auto !important; margin: 0; }",
-          "#output_df_audit_seq th,",
-          "#output_df_audit_seq td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_df_audit_seq")
-      ),
+      styled_table_div("output_df_audit_seq"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -370,16 +334,7 @@ ui <- page_navbar(
     "Duplicate analysis",
     card(
       card_header("Frequency table"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_duplicate_count table",
-          "{ width: auto !important; margin: 0; }",
-          "#output_duplicate_count th,",
-          "#output_duplicate_count td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_duplicate_count")
-      ),
+      styled_table_div("output_duplicate_count"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -388,16 +343,7 @@ ui <- page_navbar(
       ),
     card(
       card_header("Summary (frequency table)"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_duplicate_count_summary table",
-          "{ width: auto !important; margin: 0; }",
-          "#output_duplicate_count_summary th,",
-          "#output_duplicate_count_summary td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_duplicate_count_summary")
-      ),
+      styled_table_div("output_duplicate_count_summary"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -406,16 +352,7 @@ ui <- page_navbar(
       ),
     card(
       card_header("Duplicates across columns"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_duplicate_count_colpair table",
-          "{ width: auto !important; margin: 0; }",
-          "#output_duplicate_count_colpair th,",
-          "#output_duplicate_count_colpair td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_duplicate_count_colpair")
-      ),
+      styled_table_div("output_duplicate_count_colpair"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -429,16 +366,7 @@ ui <- page_navbar(
       ),
     card(
       card_header("Summary (duplicates across columns)"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_duplicate_count_colpair_summary table",
-          "{ width: auto !important; margin: 0; }",
-          "#output_duplicate_count_colpair_summary th,",
-          "#output_duplicate_count_colpair_summary td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_duplicate_count_colpair_summary")
-      ),
+      styled_table_div("output_duplicate_count_colpair_summary"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -447,16 +375,7 @@ ui <- page_navbar(
       ),
     card(
       card_header("Value tally at original location"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(
-          "#output_duplicate_tally table",
-          "{ width: auto !important; margin: 0; }",
-          "#output_duplicate_tally th,",
-          "#output_duplicate_tally td { padding: 8px 30px; }"
-        ),
-        tableOutput("output_duplicate_tally")
-      ),
+      styled_table_div("output_duplicate_tally"),
       full_screen = TRUE
     ) |>
       tooltip(
@@ -467,16 +386,7 @@ ui <- page_navbar(
       ),
     card(
       card_header("Summary (value tally at original location)"),
-      div(
-        style = "overflow-x: auto; display: flex; justify-content: center;",
-        tags$style(paste(
-          "#output_duplicate_tally_summary table",
-          "{ width: auto !important; margin: 0; }",
-          "#output_duplicate_tally_summary th,",
-          "#output_duplicate_tally_summary td { padding: 8px 30px; }"
-        )),
-        tableOutput("output_duplicate_tally_summary")
-      ),
+      styled_table_div("output_duplicate_tally_summary"),
       full_screen = TRUE
     ) |>
       tooltip(
