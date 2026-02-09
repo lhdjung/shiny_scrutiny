@@ -421,7 +421,18 @@ server <- function(input, output) {
       out <- pigs5
     } else {
       validate(need(input$input_df, "Upload data first."))
-      out <- read_delim(input$input_df$datapath, show_col_types = FALSE)
+      # Detect European CSV format (semicolon-delimited, comma decimal mark)
+      first_line <- readLines(input$input_df$datapath, n = 1L, encoding = "UTF-8")
+      if (grepl(";", first_line)) {
+        out <- read_delim(
+          input$input_df$datapath,
+          delim = ";",
+          locale = locale(decimal_mark = ",", grouping_mark = "."),
+          show_col_types = FALSE
+        )
+      } else {
+        out <- read_delim(input$input_df$datapath, show_col_types = FALSE)
+      }
     }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
@@ -465,13 +476,22 @@ server <- function(input, output) {
     select_rounding_method(input$rounding)
   })
 
+  # Filter user data to rows with complete required columns for the selected
+
+  # test. GRIM needs x and n; GRIMMER and DEBIT also need sd.
+  testable_data <- reactive({
+    required_cols <- if (input$name_test == "GRIM") c("x", "n") else c("x", "sd", "n")
+    df <- user_data()
+    df[complete.cases(df[, intersect(required_cols, names(df))]), ]
+  })
+
   # Basic analyses:
   tested_df <- reactive({
     if (input$name_test == "DEBIT") {
       msg_error <- "Error: DEBIT only works with means and SDs of binary data."
       validate(
-        need(all(between(as.numeric(user_data()$x), 0, 1)), msg_error),
-        need(all(between(as.numeric(user_data()$sd), 0, 1)), msg_error)
+        need(all(between(as.numeric(testable_data()$x), 0, 1)), msg_error),
+        need(all(between(as.numeric(testable_data()$sd), 0, 1)), msg_error)
       )
     }
 
@@ -482,18 +502,18 @@ server <- function(input, output) {
     out <- switch(
       input$name_test,
       "GRIM" = grim_map(
-        user_data(),
+        testable_data(),
         items = input$items,
         percent = percent(),
         rounding = method
       ),
       "GRIMMER" = grimmer_map(
-        user_data(),
+        testable_data(),
         items = input$items,
         rounding = method
       ),
       "DEBIT" = debit_map(
-        user_data(),
+        testable_data(),
         rounding = method
       )
     )
@@ -541,20 +561,20 @@ server <- function(input, output) {
     switch(
       input$name_test,
       "GRIM" = grim_map_seq(
-        user_data(),
+        testable_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
         items = input$items,
         percent = percent(),
         rounding = method
       ),
       "GRIMMER" = grimmer_map_seq(
-        user_data(),
+        testable_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
         items = input$items,
         rounding = method
       ),
       "DEBIT" = debit_map_seq(
-        user_data(),
+        testable_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
         rounding = method
       )

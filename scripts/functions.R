@@ -24,7 +24,7 @@ select_rounding_method <- function(rounding) {
 plot_test_results <- function(df, name_test, size_text) {
   if (any(name_test == c("GRIM", "GRIMMER"))) {
     suppressWarnings(
-      grim_plot(df, rounding = rounding) +
+      grim_plot(df) +
         theme(text = element_text(size = size_text), aspect.ratio = 1)
     )
   } else if (name_test == "DEBIT") {
@@ -334,7 +334,7 @@ format_after_upload <- function(df, digits) {
   width_max <- df[indices_numeric_like_cols] |>
     unlist(use.names = FALSE) |>
     decimal_places() |>
-    max(digits)
+    max(digits, na.rm = TRUE)
   # Select the columns that only store whole numbers. Convert them to integer so
   # that they are displayed better. (They don't need to be padded with trailing
   # zeros because they presumably never had any decimal numbers to begin with.)
@@ -345,7 +345,7 @@ format_after_upload <- function(df, digits) {
     across(
       .cols = all_of(indices_numeric_like_cols),
       .fns = function(x) {
-        if (all(is_whole_number(as.numeric(x)))) {
+        if (all(is_whole_number(as.numeric(x)), na.rm = TRUE)) {
           as.integer(x)
         } else {
           restore_zeros(x, width = width_max)
