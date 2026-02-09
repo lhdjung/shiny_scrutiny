@@ -22,7 +22,7 @@ source("scripts/functions.R")
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
-  title = "Error detection (beta 0.2.0)",
+  title = "Error detection (beta 0.2.1)",
   id = "nav",
   header = tags$style(".card-header { text-align: center; }"),
 
@@ -422,7 +422,11 @@ server <- function(input, output) {
     } else {
       validate(need(input$input_df, "Upload data first."))
       # Detect European CSV format (semicolon-delimited, comma decimal mark)
-      first_line <- readLines(input$input_df$datapath, n = 1L, encoding = "UTF-8")
+      first_line <- readLines(
+        input$input_df$datapath,
+        n = 1L,
+        encoding = "UTF-8"
+      )
       if (grepl(";", first_line)) {
         out <- read_delim(
           input$input_df$datapath,
@@ -480,7 +484,11 @@ server <- function(input, output) {
 
   # test. GRIM needs x and n; GRIMMER and DEBIT also need sd.
   testable_data <- reactive({
-    required_cols <- if (input$name_test == "GRIM") c("x", "n") else c("x", "sd", "n")
+    required_cols <- if (input$name_test == "GRIM") {
+      c("x", "n")
+    } else {
+      c("x", "sd", "n")
+    }
     df <- user_data()
     df[complete.cases(df[, intersect(required_cols, names(df))]), ]
   })
