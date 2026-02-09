@@ -301,9 +301,9 @@ rename_duplicate_summary <- function(df, function_ending) {
 # Create a centered, scrollable table div with custom styling
 styled_table_div <- function(output_id) {
   div(
-    style = "overflow-x: auto; display: flex; justify-content: center;",
+    style = "overflow-x: auto; min-width: 0;",
     tags$style(paste(
-      paste0("#", output_id, " table { width: auto !important; margin: 0; }"),
+      paste0("#", output_id, " table { width: auto !important; margin: 0 auto; }"),
       paste0("#", output_id, " th, #", output_id, " td { padding: 8px 30px; }")
     )),
     tableOutput(output_id)
