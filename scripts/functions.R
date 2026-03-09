@@ -303,7 +303,10 @@ styled_table_div <- function(output_id) {
   div(
     style = "overflow-x: auto; min-width: 0;",
     tags$style(paste(
-      paste0("#", output_id, " table { width: auto !important; margin: 0 auto; }"),
+      # fmt: skip
+      paste0(
+        "#", output_id, " table { width: auto !important; margin: 0 auto; }"
+      ),
       paste0("#", output_id, " th, #", output_id, " td { padding: 8px 30px; }")
     )),
     tableOutput(output_id)
@@ -319,40 +322,29 @@ is_whole_number <- function(x, tolerance = .Machine$double.eps^0.5) {
   abs(x - round(x)) < tolerance
 }
 
-format_after_upload <- function(df, digits) {
+format_after_upload <- function(df) {
   # Which columns can be coerced to numeric? The key question is whether
   # coercion generates new `NA`s, which happens whenever a string can't be
-  # parsed as a number. See `scrutiny::is_numeric_like()`.
-  indices_numeric_like_cols <- which(vapply(
-    df,
-    is_numeric_like,
-    logical(1L),
-    USE.NAMES = FALSE
-  ))
-  # Determine the maximum number of decimal places from among the numeric-like
-  # values in `df` (see `scrutiny::is_numeric_like()`) and `digits`:
-  width_max <- df[indices_numeric_like_cols] |>
-    unlist(use.names = FALSE) |>
-    decimal_places() |>
-    max(digits, na.rm = TRUE)
+  # parsed as a number. See `scrutiny::is_numeric_like()`. Also, all values must
+  # be integer-ish.
+  indices_integer_like_cols <- df |>
+    vapply(
+      function(col) {
+        is_numeric_like(col) && all(is_whole_number(as.numeric(col)))
+      },
+      logical(1L),
+      USE.NAMES = FALSE
+    ) |>
+    which()
+
   # Select the columns that only store whole numbers. Convert them to integer so
   # that they are displayed better. (They don't need to be padded with trailing
   # zeros because they presumably never had any decimal numbers to begin with.)
-  # Decimal numbers are padded to `width_max` with trailing zeros. Disclaimer:
-  # The anonymous function uses some code from the `?integer` documentation.
-  mutate(
-    df,
-    across(
-      .cols = all_of(indices_numeric_like_cols),
-      .fns = function(x) {
-        if (all(is_whole_number(as.numeric(x)), na.rm = TRUE)) {
-          as.integer(x)
-        } else {
-          restore_zeros(x, width = width_max)
-        }
-      }
-    )
-  )
+  df |>
+    mutate(across(
+      .cols = all_of(indices_integer_like_cols),
+      .fns = as.integer
+    ))
 }
 
 format_download_file_name <- function(

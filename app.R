@@ -450,7 +450,51 @@ server <- function(input, output) {
       out <- rename(out, n = !!input$n)
     }
 
-    format_after_upload(out, digits = input$digits)
+    keys_all <- c("x", "sd", "n")
+
+    for (key in keys_all) {
+      # no_missing <- !anyNA(out[[key]])
+      # validate(need(
+      #   no_missing,
+      #   paste0("ERROR: Missing values not allowed in key column \"", key, "\".")
+      # ))
+
+      dp_unique <- out[[key]] |> decimal_places() |> unique()
+      dp_unique <- dp_unique[!is.na(dp_unique)]
+
+      # Skip to next key column unless there are varying numbers of decimals
+      if (length(dp_unique) < 2) {
+        next
+      }
+
+      # Prepare error message
+      key_quotes <- paste0("\"", key, "\"")
+      keys_other_quotes <- paste0("\"", keys_all[keys_all != key], "\"") |>
+        paste(collapse = ", ")
+
+      validate(need(
+        FALSE,
+        c(
+          paste(
+            "ERROR: Data with varying numbers of decimal places in",
+            key_quotes,
+            "are not allowed."
+          ),
+          paste0(
+            "They risk to confuse loss of tailing zeros for genuine ",
+            "differences in precision (or vice versa).\n"
+          ),
+          # fmt: skip
+          paste(
+            "--> Please divide the data into multiple chunks of rows where",
+            "each", key_quotes, "value has the same number of decimal places."
+          ),
+          paste("--> The same rules apply to:", keys_other_quotes)
+        )
+      ))
+    }
+
+    format_after_upload(out)
   })
 
   name_input_file <- reactive({
@@ -496,7 +540,7 @@ server <- function(input, output) {
   # Basic analyses:
   tested_df <- reactive({
     if (input$name_test == "DEBIT") {
-      msg_error <- "Error: DEBIT only works with means and SDs of binary data."
+      msg_error <- "ERROR: DEBIT only works with means and SDs of binary data."
       validate(
         need(all(between(as.numeric(testable_data()$x), 0, 1)), msg_error),
         need(all(between(as.numeric(testable_data()$sd), 0, 1)), msg_error)
