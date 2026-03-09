@@ -22,7 +22,7 @@ source("scripts/functions.R")
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
-  title = "Error detection (beta 0.2.2)",
+  title = "Error detection (beta 0.2.3)",
   id = "nav",
   header = tags$style(".card-header { text-align: center; }"),
 
