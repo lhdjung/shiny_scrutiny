@@ -467,8 +467,9 @@ server <- function(input, output) {
       validate(need(
         all(items_vals == floor(items_vals), na.rm = TRUE),
         paste0(
-          "ERROR: The items column (\"", items_col_name, "\") must contain ",
-          "whole numbers only."
+          "ERROR: The items column (\"",
+          items_col_name,
+          "\") must contain whole numbers only."
         )
       ))
       out$n <- out$n * as.integer(items_vals)
@@ -550,7 +551,7 @@ server <- function(input, output) {
     if (items_merged() && input$items > 1) {
       tags$p(
         style = "color: orange; font-size: 0.85em;",
-        "Note: \u201cNumber of scale items\u201d is ignored because an items column is active."
+        "\u26a0 \u201cNumber of scale items\u201d is ignored because an items column is active."
       )
     }
   })
