@@ -327,11 +327,22 @@ format_after_upload <- function(df) {
   # coercion generates new `NA`s, which happens whenever a string can't be
   # parsed as a number. See `scrutiny::is_numeric_like()`. Also, all values must
   # be integer-ish.
+  is_integer_like_col <- function(col) {
+    is_numeric_like(col) && all(is_whole_number(as.numeric(col)), na.rm = TRUE)
+  }
+
   indices_integer_like_cols <- df |>
+    vapply(is_integer_like_col, logical(1L), USE.NAMES = FALSE) |>
+    which()
+
+  # Non-integer numeric columns (e.g. means and SDs parsed as numeric from
+  # European-locale CSV files) must become character, because the testing
+  # functions require character input for those columns. If such columns are
+  # already character (as from a regular CSV), is.numeric() returns FALSE and
+  # they are left untouched.
+  indices_noninteger_numeric_cols <- df |>
     vapply(
-      function(col) {
-        is_numeric_like(col) && all(is_whole_number(as.numeric(col)))
-      },
+      function(col) is.numeric(col) && !is_integer_like_col(col),
       logical(1L),
       USE.NAMES = FALSE
     ) |>
@@ -341,10 +352,8 @@ format_after_upload <- function(df) {
   # that they are displayed better. (They don't need to be padded with trailing
   # zeros because they presumably never had any decimal numbers to begin with.)
   df |>
-    mutate(across(
-      .cols = all_of(indices_integer_like_cols),
-      .fns = as.integer
-    ))
+    mutate(across(.cols = all_of(indices_integer_like_cols), .fns = as.integer)) |>
+    mutate(across(.cols = all_of(indices_noninteger_numeric_cols), .fns = as.character))
 }
 
 format_download_file_name <- function(

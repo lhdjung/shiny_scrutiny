@@ -48,6 +48,13 @@ ui <- page_navbar(
       textInput("x", "Mean / percentage column:", "x"),
       textInput("sd", "Standard deviation column:", "sd"),
       textInput("n", "Sample size column:", "n"),
+      textInput("items_col", "Items column:", "items") |>
+        tooltip(
+          "If the data has a column with the number of scale items per mean, \
+          enter its name here. Its integer values will be multiplied with the \
+          sample size column to form the effective sample size. Leave blank \
+          to ignore."
+        ),
       numericInput(
         "digits",
         label = "Restore decimal zeros:",
@@ -98,7 +105,8 @@ ui <- page_navbar(
           tooltip(
             "If the scale from which the means are derived is composed \
             of multiple items, enter the number of those items here."
-          )
+          ),
+        uiOutput("items_conflict_warning")
       ),
       # # TODO: implement item column merging
       # conditionalPanel(
@@ -391,6 +399,8 @@ ui <- page_navbar(
 # Define server logic -----------------------------------------------------
 
 server <- function(input, output) {
+  items_merged <- reactiveVal(FALSE)
+
   # Server: data upload ---------------------------------------------------
 
   output$text_info_upload <- renderUI({
@@ -448,6 +458,24 @@ server <- function(input, output) {
     }
     if (input$n != "n") {
       out <- rename(out, n = !!input$n)
+    }
+
+    # Merge items column into n if specified and present:
+    items_col_name <- input$items_col
+    if (nzchar(items_col_name) && items_col_name %in% names(out)) {
+      items_vals <- out[[items_col_name]]
+      validate(need(
+        all(items_vals == floor(items_vals), na.rm = TRUE),
+        paste0(
+          "ERROR: The items column (\"", items_col_name, "\") must contain ",
+          "whole numbers only."
+        )
+      ))
+      out$n <- out$n * as.integer(items_vals)
+      out[[items_col_name]] <- NULL
+      items_merged(TRUE)
+    } else {
+      items_merged(FALSE)
     }
 
     keys_all <- c("x", "sd", "n")
@@ -513,6 +541,20 @@ server <- function(input, output) {
     }
   })
 
+  # When an items column was merged into n, the scalar items input is bypassed:
+  effective_items <- reactive({
+    if (items_merged()) 1L else input$items
+  })
+
+  output$items_conflict_warning <- renderUI({
+    if (items_merged() && input$items > 1) {
+      tags$p(
+        style = "color: orange; font-size: 0.85em;",
+        "Note: \u201cNumber of scale items\u201d is ignored because an items column is active."
+      )
+    }
+  })
+
   # Display uploaded data:
   output$uploaded_data <- renderTable({
     user_data()
@@ -555,13 +597,13 @@ server <- function(input, output) {
       input$name_test,
       "GRIM" = grim_map(
         testable_data(),
-        items = input$items,
+        items = effective_items(),
         percent = percent(),
         rounding = method
       ),
       "GRIMMER" = grimmer_map(
         testable_data(),
-        items = input$items,
+        items = effective_items(),
         rounding = method
       ),
       "DEBIT" = debit_map(
@@ -610,19 +652,19 @@ server <- function(input, output) {
     # Get rounding method (no threshold needed for available methods)
     method <- rounding_method()
 
-    switch(
+    out <- suppressWarnings(switch(
       input$name_test,
       "GRIM" = grim_map_seq(
         testable_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
-        items = input$items,
+        items = effective_items(),
         percent = percent(),
         rounding = method
       ),
       "GRIMMER" = grimmer_map_seq(
         testable_data(),
         dispersion = seq_len(as.integer(input$dispersion)),
-        items = input$items,
+        items = effective_items(),
         rounding = method
       ),
       "DEBIT" = debit_map_seq(
@@ -630,7 +672,14 @@ server <- function(input, output) {
         dispersion = seq_len(as.integer(input$dispersion)),
         rounding = method
       )
-    )
+    ))
+
+    validate(need(
+      nrow(out) > 0,
+      "No inconsistent cases to disperse from. All tested values are consistent."
+    ))
+
+    out
   })
 
   output$output_df_seq <- renderTable({
