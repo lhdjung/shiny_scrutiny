@@ -352,8 +352,14 @@ format_after_upload <- function(df) {
   # that they are displayed better. (They don't need to be padded with trailing
   # zeros because they presumably never had any decimal numbers to begin with.)
   df |>
-    mutate(across(.cols = all_of(indices_integer_like_cols), .fns = as.integer)) |>
-    mutate(across(.cols = all_of(indices_noninteger_numeric_cols), .fns = as.character))
+    mutate(across(
+      .cols = all_of(indices_integer_like_cols),
+      .fns = as.integer
+    )) |>
+    mutate(across(
+      .cols = all_of(indices_noninteger_numeric_cols),
+      .fns = as.character
+    ))
 }
 
 format_download_file_name <- function(
