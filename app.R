@@ -48,7 +48,7 @@ ui <- page_navbar(
       textInput("x", "Mean / percentage column:", "x"),
       textInput("sd", "Standard deviation column:", "sd"),
       textInput("n", "Sample size column:", "n"),
-      textInput("items_col", "Items column:", "items") |>
+      textInput("items_col", "Items column:", "") |>
         tooltip(
           "If the data has a column with the number of scale items per mean, \
           enter its name here. Its integer values will be multiplied with the \
@@ -94,7 +94,7 @@ ui <- page_navbar(
       ),
       # Number of items:
       conditionalPanel(
-        "input.name_test === 'GRIM' && input.mean_percent === 'Mean'",
+        "(input.name_test === 'GRIM' && input.mean_percent === 'Mean') || input.name_test === 'GRIMMER'",
         numericInput(
           "items",
           label = "Number of scale items",
@@ -462,14 +462,36 @@ server <- function(input, output) {
 
     # Merge items column into n if specified and present:
     items_col_name <- input$items_col
-    if (nzchar(items_col_name) && items_col_name %in% names(out)) {
+    if (nzchar(items_col_name)) {
+      validate(need(
+        items_col_name %in% names(out),
+        paste0(
+          "ERROR: Items column \"",
+          items_col_name,
+          "\" not found in the data."
+        )
+      ))
       items_vals <- out[[items_col_name]]
       validate(need(
-        all(items_vals == floor(items_vals), na.rm = TRUE),
+        is.numeric(items_vals),
         paste0(
           "ERROR: The items column (\"",
           items_col_name,
-          "\") must contain whole numbers only."
+          "\") must be a numeric ",
+          "column, not strings."
+        )
+      ))
+      validate(need(
+        is.numeric(out[["n"]]),
+        "ERROR: The sample size column must be numeric to merge with the items column."
+      ))
+      validate(need(
+        all(is_whole_number(items_vals), na.rm = TRUE),
+        paste0(
+          "ERROR: The items column (\"",
+          items_col_name,
+          "\") must contain ",
+          "whole numbers only."
         )
       ))
       out$n <- out$n * as.integer(items_vals)
@@ -577,7 +599,13 @@ server <- function(input, output) {
       c("x", "sd", "n")
     }
     df <- user_data()
-    df[complete.cases(df[, intersect(required_cols, names(df))]), ]
+    df <- df[complete.cases(df[, intersect(required_cols, names(df))]), ]
+    # Drop any "items" column not configured for merging; passing it through
+    # would conflict with scrutiny's internal items handling.
+    if (!items_merged() && "items" %in% names(df)) {
+      df[["items"]] <- NULL
+    }
+    df
   })
 
   # Basic analyses:
