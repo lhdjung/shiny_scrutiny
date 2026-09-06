@@ -406,7 +406,11 @@ ui <- page_navbar(
 # Define server logic -----------------------------------------------------
 
 server <- function(input, output, session) {
-  items_merged <- reactiveVal(FALSE)
+  # An items column supersedes the scalar "Number of scale items" input. Derived
+  # from the input rather than stored: `user_data()` folds the column into `n`
+  # and drops it, so a separate flag would only be a second copy of this fact,
+  # written as a side effect and read before it was set.
+  items_col_active <- reactive(isTruthy(input$items_col))
 
   # Server: data upload ---------------------------------------------------
 
@@ -478,7 +482,7 @@ server <- function(input, output, session) {
 
     # Merge items column into n if specified and present:
     items_col_name <- input$items_col
-    if (nzchar(items_col_name)) {
+    if (items_col_active()) {
       validate(need(
         items_col_name %in% names(out),
         paste0(
@@ -512,9 +516,6 @@ server <- function(input, output, session) {
       ))
       out$n <- out$n * as.integer(items_vals)
       out[[items_col_name]] <- NULL
-      items_merged(TRUE)
-    } else {
-      items_merged(FALSE)
     }
 
     format_after_upload(out)
@@ -536,13 +537,14 @@ server <- function(input, output, session) {
     }
   })
 
-  # When an items column was merged into n, the scalar items input is bypassed:
+  # The merge has already folded the items into `n`, so scrutiny must not
+  # multiply by them a second time.
   effective_items <- reactive({
-    if (items_merged()) 1L else input$items
+    if (items_col_active()) 1L else input$items
   })
 
   output$items_conflict_warning <- renderUI({
-    if (items_merged() && input$items > 1) {
+    if (items_col_active() && isTruthy(input$items) && input$items > 1) {
       tags$p(
         style = "color: orange; font-size: 0.85em;",
         "\u26a0 \u201cNumber of scale items\u201d is ignored because an items column is active."
@@ -572,11 +574,11 @@ server <- function(input, output, session) {
     }
     df <- user_data()
     df <- df[complete.cases(df[, intersect(required_cols, names(df))]), ]
-    # Drop any "items" column not configured for merging; passing it through
-    # would conflict with scrutiny's internal items handling.
-    if (!items_merged() && "items" %in% names(df)) {
-      df[["items"]] <- NULL
-    }
+    # Drop any surviving "items" column. scrutiny consumes one silently and
+    # multiplies `n` by it, overriding the `items` argument. A column consumed
+    # by the merge is already gone from `user_data()`, so this only ever hits an
+    # unrelated leftover.
+    df[["items"]] <- NULL
     validate(need(
       all(required_cols %in% names(df)),
       paste0(
