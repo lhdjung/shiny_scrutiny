@@ -1,8 +1,5 @@
 # General helpers ---------------------------------------------------------
 
-set_names <- `names<-`
-
-
 # Consistency testing -----------------------------------------------------
 
 select_rounding_method <- function(rounding) {
@@ -11,8 +8,6 @@ select_rounding_method <- function(rounding) {
     "Up or down" = "up_or_down",
     "Up" = "up",
     "Down" = "down",
-    "Up from..." = "up_from",
-    "Down from..." = "down_from",
     "Ceiling or floor" = "ceiling_or_floor",
     "Ceiling" = "ceiling",
     "Floor" = "floor",
@@ -85,47 +80,31 @@ rename_after_testing <- function(df, name_test, percent) {
   }
 }
 
-rename_after_audit <- function(df, name_test, percent) {
-  if (name_test == "GRIM") {
-    ratio_header <- if (percent) "percentages" else "means"
-    ratio_header <- paste(
-      "Mean probability of inconsistency for random",
-      ratio_header
-    )
-  } else {
-    ratio_header <- NULL
-  }
-  # Rename by consistency test:
-  df |>
-    set_names(switch(
-      name_test,
-      "GRIM" = c(
-        "Inconsistent cases",
-        "All cases",
-        "Inconsistency rate",
-        ratio_header,
-        "Inconsistencies / probability",
-        "Testable cases",
-        "Testable cases rate"
-      ),
-      "GRIMMER" = c(
-        "Inconsistent cases",
-        "All cases",
-        "Inconsistency rate",
-        "Failed GRIM",
-        "Failed GRIMMER (test 1)",
-        "Failed GRIMMER (test 2)",
-        "Failed GRIMMER (test 3)"
-      ),
-      "DEBIT" = c(
-        "Inconsistent cases",
-        "All cases",
-        "Inconsistency rate",
-        "Mean of means",
-        "Mean of SDs",
-        "Distinct sample sizes"
-      )
-    ))
+# Renamed by name, not by position: a column added or moved upstream then keeps
+# its raw name instead of silently inheriting the label of a different column.
+rename_after_audit <- function(df, percent) {
+  ratio_header <- paste(
+    "Mean probability of inconsistency for random",
+    if (isTRUE(percent)) "percentages" else "means"
+  )
+  cols <- c(
+    "Inconsistent cases" = "incons_cases",
+    "All cases" = "all_cases",
+    "Inconsistency rate" = "incons_rate",
+    "Inconsistencies / probability" = "incons_to_prob",
+    "Testable cases" = "testable_cases",
+    "Testable cases rate" = "testable_rate",
+    "Failed GRIM" = "fail_grim",
+    "Failed GRIMMER (test 1)" = "fail_test1",
+    "Failed GRIMMER (test 2)" = "fail_test2",
+    "Failed GRIMMER (test 3)" = "fail_test3",
+    "Failed scale bounds" = "fail_scale",
+    "Mean of means" = "mean_x",
+    "Mean of SDs" = "mean_sd",
+    "Distinct sample sizes" = "distinct_n"
+  )
+  cols[ratio_header] <- "mean_grim_prob"
+  rename(df, any_of(cols))
 }
 
 # This function MUST contain renaming instructions for all key variables of all
@@ -279,7 +258,7 @@ rename_duplicate_summary <- function(df, function_ending) {
     function_ending,
     "count" = c("Frequency", "Number of locations"),
     "count_colpair" = special_colnames_count_colpair,
-    "tally" = c(df$term[seq_along(df$term) - 1L], "Total")
+    "tally" = c(head(df$term, -1L), "Total")
   )
 
   df |>
@@ -322,44 +301,33 @@ is_whole_number <- function(x, tolerance = .Machine$double.eps^0.5) {
   abs(x - round(x)) < tolerance
 }
 
+# Columns holding only whole numbers display better as integers. `x` and `sd`
+# are exempt: their decimal places carry the precision that GRIM and friends
+# test against, so a mean reported as "5.00" must not collapse to 5.
 format_after_upload <- function(df) {
-  # Which columns can be coerced to numeric? The key question is whether
-  # coercion generates new `NA`s, which happens whenever a string can't be
-  # parsed as a number. See `scrutiny::is_numeric_like()`. Also, all values must
-  # be integer-ish.
   is_integer_like_col <- function(col) {
     is_numeric_like(col) && all(is_whole_number(as.numeric(col)), na.rm = TRUE)
   }
 
-  indices_integer_like_cols <- df |>
-    vapply(is_integer_like_col, logical(1L), USE.NAMES = FALSE) |>
-    which()
+  cols_integer_like <- names(df)[
+    vapply(df, is_integer_like_col, logical(1L), USE.NAMES = FALSE)
+  ]
 
-  # Non-integer numeric columns (e.g. means and SDs parsed as numeric from
-  # European-locale CSV files) must become character, because the testing
-  # functions require character input for those columns. If such columns are
-  # already character (as from a regular CSV), is.numeric() returns FALSE and
-  # they are left untouched.
-  indices_noninteger_numeric_cols <- df |>
-    vapply(
-      function(col) is.numeric(col) && !is_integer_like_col(col),
-      logical(1L),
-      USE.NAMES = FALSE
-    ) |>
-    which()
-
-  # Select the columns that only store whole numbers. Convert them to integer so
-  # that they are displayed better. (They don't need to be padded with trailing
-  # zeros because they presumably never had any decimal numbers to begin with.)
-  df |>
-    mutate(across(
-      .cols = all_of(indices_integer_like_cols),
+  mutate(
+    df,
+    across(
+      .cols = all_of(setdiff(cols_integer_like, c("x", "sd"))),
       .fns = as.integer
-    )) |>
-    mutate(across(
-      .cols = all_of(indices_noninteger_numeric_cols),
-      .fns = as.character
-    ))
+    )
+  )
+}
+
+# Decimal places to declare to scrutiny, which since 1.0.0 takes them as an
+# explicit argument rather than inferring them from trailing zeros in strings.
+# Uses whatever precision the column still shows, or the user's "Restore decimal
+# zeros" value, whichever is greater.
+digits_declared <- function(col, digits_min) {
+  max(c(digits_min, decimal_places(col)), na.rm = TRUE)
 }
 
 format_download_file_name <- function(

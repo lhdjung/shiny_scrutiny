@@ -3,7 +3,6 @@ library(bslib)
 library(rlang)
 library(ggplot2)
 library(dplyr)
-library(corrr)
 library(readr)
 library(stringr)
 library(janitor)
@@ -133,7 +132,14 @@ ui <- page_navbar(
           reconstructing numbers rounded in the chosen way (or in either \
           of two ways, as with the permissive default \"Up or down\")."
         ),
-      textInput("dispersion", label = "Dispersion:", value = "5") |>
+      numericInput(
+        "dispersion",
+        label = "Dispersion:",
+        value = 5,
+        min = 1,
+        max = 100,
+        step = 1
+      ) |>
         tooltip(
           "How far should the dispersed sequences be spread out?
           You can define the number of steps. For example, the default
@@ -216,6 +222,7 @@ ui <- page_navbar(
 
   nav_panel(
     "Consistency testing",
+    uiOutput("dropped_rows_note"),
 
     # Warning note for GRIMMER test 3 reliability
     conditionalPanel(
@@ -398,7 +405,7 @@ ui <- page_navbar(
 
 # Define server logic -----------------------------------------------------
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   items_merged <- reactiveVal(FALSE)
 
   # Server: data upload ---------------------------------------------------
@@ -431,13 +438,20 @@ server <- function(input, output) {
       out <- pigs5
     } else {
       validate(need(input$input_df, "Upload data first."))
-      # Detect European CSV format (semicolon-delimited, comma decimal mark)
+      # Detect European CSV format (semicolon-delimited, comma decimal mark).
+      # Counting both separators beats testing for a bare ";", which misreads a
+      # comma-delimited file whose header merely contains one.
       first_line <- readLines(
         input$input_df$datapath,
         n = 1L,
-        encoding = "UTF-8"
+        encoding = "UTF-8",
+        warn = FALSE
       )
-      if (grepl(";", first_line)) {
+      validate(need(length(first_line) == 1L, "ERROR: The file is empty."))
+      count_char <- function(char) {
+        lengths(gregexpr(char, first_line, fixed = TRUE))
+      }
+      if (count_char(";") > count_char(",")) {
         out <- read_delim(
           input$input_df$datapath,
           delim = ";",
@@ -450,14 +464,16 @@ server <- function(input, output) {
     }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
-    if (input$x != "x") {
-      out <- rename(out, x = !!input$x)
-    }
-    if (input$sd != "sd") {
-      out <- rename(out, sd = !!input$sd)
-    }
-    if (input$n != "n") {
-      out <- rename(out, n = !!input$n)
+    for (key in c("x", "sd", "n")) {
+      name_given <- input[[key]]
+      if (name_given == key) {
+        next
+      }
+      validate(need(
+        name_given %in% names(out),
+        paste0("ERROR: Column \"", name_given, "\" not found in the data.")
+      ))
+      out <- rename(out, !!key := !!name_given)
     }
 
     # Merge items column into n if specified and present:
@@ -499,50 +515,6 @@ server <- function(input, output) {
       items_merged(TRUE)
     } else {
       items_merged(FALSE)
-    }
-
-    keys_all <- c("x", "sd", "n")
-
-    for (key in keys_all) {
-      # no_missing <- !anyNA(out[[key]])
-      # validate(need(
-      #   no_missing,
-      #   paste0("ERROR: Missing values not allowed in key column \"", key, "\".")
-      # ))
-
-      dp_unique <- out[[key]] |> decimal_places() |> unique()
-      dp_unique <- dp_unique[!is.na(dp_unique)]
-
-      # Skip to next key column unless there are varying numbers of decimals
-      if (length(dp_unique) < 2) {
-        next
-      }
-
-      # Prepare error message
-      key_quotes <- paste0("\"", key, "\"")
-      keys_other_quotes <- paste0("\"", keys_all[keys_all != key], "\"") |>
-        paste(collapse = ", ")
-
-      validate(need(
-        FALSE,
-        c(
-          paste(
-            "ERROR: Data with varying numbers of decimal places in",
-            key_quotes,
-            "are not allowed."
-          ),
-          paste0(
-            "They risk to confuse loss of tailing zeros for genuine ",
-            "differences in precision (or vice versa).\n"
-          ),
-          # fmt: skip
-          paste(
-            "--> Please divide the data into multiple chunks of rows where",
-            "each", key_quotes, "value has the same number of decimal places."
-          ),
-          paste("--> The same rules apply to:", keys_other_quotes)
-        )
-      ))
     }
 
     format_after_upload(out)
@@ -605,7 +577,77 @@ server <- function(input, output) {
     if (!items_merged() && "items" %in% names(df)) {
       df[["items"]] <- NULL
     }
-    df
+    validate(need(
+      all(required_cols %in% names(df)),
+      paste0(
+        "ERROR: This test needs a \"",
+        paste(setdiff(required_cols, names(df)), collapse = "\" and a \""),
+        "\" column. Name it in the sidebar."
+      )
+    ))
+    validate(need(
+      nrow(df) > 0,
+      "ERROR: No rows have all of the required columns."
+    ))
+    validate(need(
+      is_numeric_like(df$n) &&
+        all(
+          is_whole_number(as.numeric(df$n)) & as.numeric(df$n) > 0,
+          na.rm = TRUE
+        ),
+      "ERROR: The sample size column must contain positive whole numbers only."
+    ))
+    # Key columns go to scrutiny as numbers; precision travels separately, in
+    # `digits_x` / `digits_sd`.
+    mutate(df, across(any_of(c("x", "sd")), as.numeric))
+  })
+
+  # How many rows the tests never saw. Silence here would understate the
+  # denominator of every rate the app reports.
+  output$dropped_rows_note <- renderUI({
+    n_dropped <- nrow(user_data()) - nrow(testable_data())
+    if (n_dropped < 1) {
+      return(NULL)
+    }
+    tags$p(
+      style = "color: orange;",
+      sprintf(
+        "\u26a0 %d of %d row(s) were excluded from testing because a required
+        column was missing. Reported counts and rates below cover the remaining
+        %d row(s) only.",
+        n_dropped,
+        nrow(user_data()),
+        nrow(testable_data())
+      )
+    )
+  })
+
+  # Decimal places declared to scrutiny, taken before the key columns are
+  # reduced to numbers. `input$digits` is the floor, for zeros already lost.
+  digits_of <- function(key) {
+    reactive({
+      df <- user_data()
+      validate(need(
+        key %in% names(df),
+        paste0(
+          "ERROR: No \"",
+          key,
+          "\" column in the data. Name it in the sidebar."
+        )
+      ))
+      digits_declared(df[[key]], input$digits)
+    })
+  }
+  digits_x <- digits_of("x")
+  digits_sd <- digits_of("sd")
+
+  # `numericInput` yields NA while the field is empty or out of bounds.
+  dispersion_steps <- reactive({
+    validate(need(
+      isTruthy(input$dispersion) && input$dispersion >= 1,
+      "ERROR: Dispersion must be a whole number of at least 1."
+    ))
+    min(as.integer(input$dispersion), 100L)
   })
 
   # Basic analyses:
@@ -618,25 +660,36 @@ server <- function(input, output) {
       )
     }
 
-    # Get rounding method (no threshold needed for available methods)
+    # Forced here, not left as lazy arguments: evaluated inside scrutiny, a
+    # validate() message is rethrown as a raw error instead of rendering.
     method <- rounding_method()
+    df <- testable_data()
+    items <- effective_items()
+    is_percent <- percent()
+    dp_x <- digits_x()
+    dp_sd <- if (input$name_test == "GRIM") NULL else digits_sd()
 
     # Test for consistency using a mapping function
     out <- switch(
       input$name_test,
       "GRIM" = grim_map(
-        testable_data(),
-        items = effective_items(),
-        percent = percent(),
+        df,
+        digits_x = dp_x,
+        items = items,
+        percent = is_percent,
         rounding = method
       ),
       "GRIMMER" = grimmer_map(
-        testable_data(),
-        items = effective_items(),
+        df,
+        digits_x = dp_x,
+        digits_sd = dp_sd,
+        items = items,
         rounding = method
       ),
       "DEBIT" = debit_map(
-        testable_data(),
+        df,
+        digits_x = dp_x,
+        digits_sd = dp_sd,
         rounding = method
       )
     )
@@ -664,7 +717,7 @@ server <- function(input, output) {
 
   output$output_df_audit <- renderTable({
     df_audit() |>
-      rename_after_audit(input$name_test, input$mean_percent == "Percentage")
+      rename_after_audit(input$mean_percent == "Percentage")
   })
 
   output$output_plot <- renderPlot(
@@ -678,27 +731,37 @@ server <- function(input, output) {
   # Results of dispersed sequences:
 
   tested_df_seq <- reactive({
-    # Get rounding method (no threshold needed for available methods)
     method <- rounding_method()
+    df <- testable_data()
+    items <- effective_items()
+    is_percent <- percent()
+    steps <- seq_len(dispersion_steps())
+    dp_x <- digits_x()
+    dp_sd <- if (input$name_test == "GRIM") NULL else digits_sd()
 
     out <- suppressWarnings(switch(
       input$name_test,
       "GRIM" = grim_map_seq(
-        testable_data(),
-        dispersion = seq_len(as.integer(input$dispersion)),
-        items = effective_items(),
-        percent = percent(),
+        df,
+        digits_x = dp_x,
+        dispersion = steps,
+        items = items,
+        percent = is_percent,
         rounding = method
       ),
       "GRIMMER" = grimmer_map_seq(
-        testable_data(),
-        dispersion = seq_len(as.integer(input$dispersion)),
-        items = effective_items(),
+        df,
+        digits_x = dp_x,
+        digits_sd = dp_sd,
+        dispersion = steps,
+        items = items,
         rounding = method
       ),
       "DEBIT" = debit_map_seq(
-        testable_data(),
-        dispersion = seq_len(as.integer(input$dispersion)),
+        df,
+        digits_x = dp_x,
+        digits_sd = dp_sd,
+        dispersion = steps,
         rounding = method
       )
     ))
@@ -751,11 +814,6 @@ server <- function(input, output) {
   duplicate_tally_df <- reactive({
     user_data() |>
       duplicate_tally()
-  })
-  user_data_numeric <- reactive({
-    user_data() |>
-      select(where(is_numeric_like)) |>
-      mutate(across(everything(), as.numeric))
   })
 
   # Display the duplicate analyses:
@@ -825,7 +883,7 @@ server <- function(input, output) {
     },
     content = function(file) {
       df_audit() |>
-        rename_after_audit(input$name_test, percent()) |>
+        rename_after_audit(percent()) |>
         clean_names() |>
         write_csv(file)
     }
