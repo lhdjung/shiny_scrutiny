@@ -439,7 +439,10 @@ server <- function(input, output, session) {
   user_data <- reactive({
     # Optionally, use the example `pigs5` data instead of user-uploaded data:
     if (input$use_example_data_pigs5) {
-      out <- pigs5
+      # scrutiny 1.0.0 stores `pigs5` as numbers; its values were reported to
+      # two decimal places.
+      out <- mutate(pigs5, across(c(x, sd), \(col) restore_zeros(col, width = 2)))
+      is_european <- FALSE
     } else {
       validate(need(input$input_df, "Upload data first."))
       # Detect European CSV format (semicolon-delimited, comma decimal mark).
@@ -455,22 +458,29 @@ server <- function(input, output, session) {
       count_char <- function(char) {
         lengths(gregexpr(char, first_line, fixed = TRUE))
       }
-      if (count_char(";") > count_char(",")) {
-        out <- read_delim(
-          input$input_df$datapath,
-          delim = ";",
-          locale = locale(decimal_mark = ",", grouping_mark = "."),
-          show_col_types = FALSE
-        )
+      is_european <- count_char(";") > count_char(",")
+      loc <- if (is_european) {
+        locale(decimal_mark = ",", grouping_mark = ".")
       } else {
-        out <- read_delim(input$input_df$datapath, show_col_types = FALSE)
+        default_locale()
       }
+      # Read everything as text: a number parsed as a double loses its
+      # trailing zeros, and with them the precision the tests need. The
+      # non-key columns are converted below, once the key columns are known.
+      out <- read_delim(
+        input$input_df$datapath,
+        delim = if (is_european) ";" else NULL,
+        col_types = cols(.default = col_character()),
+        locale = loc,
+        trim_ws = TRUE,
+        show_col_types = FALSE
+      )
     }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
     for (key in c("x", "sd", "n")) {
       name_given <- input[[key]]
-      if (name_given == key) {
+      if (!nzchar(name_given) || name_given == key) {
         next
       }
       validate(need(
@@ -478,6 +488,24 @@ server <- function(input, output, session) {
         paste0("ERROR: Column \"", name_given, "\" not found in the data.")
       ))
       out <- rename(out, !!key := !!name_given)
+    }
+
+    # `x` and `sd` stay as uploaded; everything else gets its natural type.
+    if (!input$use_example_data_pigs5) {
+      cols_precise <- intersect(c("x", "sd"), names(out))
+      cols_other <- setdiff(names(out), cols_precise)
+      if (length(cols_other) > 0L) {
+        out[cols_other] <- suppressMessages(type_convert(
+          out[cols_other],
+          locale = loc
+        ))
+      }
+      if (is_european) {
+        out <- mutate(
+          out,
+          across(all_of(cols_precise), \(col) str_replace(col, ",", "."))
+        )
+      }
     }
 
     # Merge items column into n if specified and present:
@@ -525,7 +553,7 @@ server <- function(input, output, session) {
     if (input$use_example_data_pigs5) {
       "example"
     } else {
-      input$input_df$name
+      req(input$input_df)$name
     }
   })
 
@@ -540,7 +568,20 @@ server <- function(input, output, session) {
   # The merge has already folded the items into `n`, so scrutiny must not
   # multiply by them a second time.
   effective_items <- reactive({
-    if (items_col_active()) 1L else input$items
+    if (items_col_active()) {
+      return(1L)
+    }
+    validate(need(
+      isTruthy(input$items) &&
+        input$items >= 1 &&
+        is_whole_number(input$items),
+      "ERROR: The number of scale items must be a positive whole number."
+    ))
+    as.integer(input$items)
+  })
+
+  plot_size_text <- reactive({
+    if (isTruthy(input$plot_size_text)) input$plot_size_text else 14
   })
 
   output$items_conflict_warning <- renderUI({
@@ -599,9 +640,29 @@ server <- function(input, output, session) {
         ),
       "ERROR: The sample size column must contain positive whole numbers only."
     ))
-    # Key columns go to scrutiny as numbers; precision travels separately, in
-    # `digits_x` / `digits_sd`.
-    mutate(df, across(any_of(c("x", "sd")), as.numeric))
+    for (key in setdiff(required_cols, "n")) {
+      validate(need(
+        is_numeric_like(df[[key]]),
+        paste0("ERROR: The \"", key, "\" column must contain numbers only.")
+      ))
+    }
+    df
+  })
+
+  # What the mappers receive: key columns as numbers, with the precision they
+  # were reported at travelling separately, one value per row, in `digits_x` /
+  # `digits_sd`. Taken from the same rows so that the two line up.
+  test_input <- reactive({
+    df <- testable_data()
+    list(
+      df = mutate(df, across(any_of(c("x", "sd")), as.numeric)),
+      digits_x = digits_declared(df$x, input$digits),
+      digits_sd = if (input$name_test == "GRIM") {
+        NULL
+      } else {
+        digits_declared(df$sd, input$digits)
+      }
+    )
   })
 
   # How many rows the tests never saw. Silence here would understate the
@@ -615,7 +676,7 @@ server <- function(input, output, session) {
       style = "color: orange;",
       sprintf(
         "\u26a0 %d of %d row(s) were excluded from testing because a required
-        column was missing. Reported counts and rates below cover the remaining
+        value was missing. Reported counts and rates below cover the remaining
         %d row(s) only.",
         n_dropped,
         nrow(user_data()),
@@ -623,25 +684,6 @@ server <- function(input, output, session) {
       )
     )
   })
-
-  # Decimal places declared to scrutiny, taken before the key columns are
-  # reduced to numbers. `input$digits` is the floor, for zeros already lost.
-  digits_of <- function(key) {
-    reactive({
-      df <- user_data()
-      validate(need(
-        key %in% names(df),
-        paste0(
-          "ERROR: No \"",
-          key,
-          "\" column in the data. Name it in the sidebar."
-        )
-      ))
-      digits_declared(df[[key]], input$digits)
-    })
-  }
-  digits_x <- digits_of("x")
-  digits_sd <- digits_of("sd")
 
   # `numericInput` yields NA while the field is empty or out of bounds.
   dispersion_steps <- reactive({
@@ -654,44 +696,43 @@ server <- function(input, output, session) {
 
   # Basic analyses:
   tested_df <- reactive({
-    if (input$name_test == "DEBIT") {
-      msg_error <- "ERROR: DEBIT only works with means and SDs of binary data."
-      validate(
-        need(all(between(as.numeric(testable_data()$x), 0, 1)), msg_error),
-        need(all(between(as.numeric(testable_data()$sd), 0, 1)), msg_error)
-      )
-    }
-
     # Forced here, not left as lazy arguments: evaluated inside scrutiny, a
     # validate() message is rethrown as a raw error instead of rendering.
     method <- rounding_method()
-    df <- testable_data()
+    ti <- test_input()
+    df <- ti$df
     items <- effective_items()
     is_percent <- percent()
-    dp_x <- digits_x()
-    dp_sd <- if (input$name_test == "GRIM") NULL else digits_sd()
+
+    if (input$name_test == "DEBIT") {
+      msg_error <- "ERROR: DEBIT only works with means and SDs of binary data."
+      validate(
+        need(all(between(df$x, 0, 1)), msg_error),
+        need(all(between(df$sd, 0, 1)), msg_error)
+      )
+    }
 
     # Test for consistency using a mapping function
     out <- switch(
       input$name_test,
       "GRIM" = grim_map(
         df,
-        digits_x = dp_x,
+        digits_x = ti$digits_x,
         items = items,
         percent = is_percent,
         rounding = method
       ),
       "GRIMMER" = grimmer_map(
         df,
-        digits_x = dp_x,
-        digits_sd = dp_sd,
+        digits_x = ti$digits_x,
+        digits_sd = ti$digits_sd,
         items = items,
         rounding = method
       ),
       "DEBIT" = debit_map(
         df,
-        digits_x = dp_x,
-        digits_sd = dp_sd,
+        digits_x = ti$digits_x,
+        digits_sd = ti$digits_sd,
         rounding = method
       )
     )
@@ -719,27 +760,43 @@ server <- function(input, output, session) {
 
   output$output_df_audit <- renderTable({
     df_audit() |>
-      rename_after_audit(input$mean_percent == "Percentage")
+      rename_after_audit(percent())
   })
 
   output$output_plot <- renderPlot(
     tested_df() |>
       plot_test_results(
         input$name_test,
-        input$plot_size_text
+        plot_size_text()
       )
   )
 
   # Results of dispersed sequences:
 
+  # The sequence mappers take a single `digits_x` / `digits_sd` for the whole
+  # column, so they are given the rows already flagged above and the greatest
+  # precision among them. A value found inconsistent at its own precision stays
+  # inconsistent at any greater one, so no verdict changes; only the step size
+  # of the dispersion can be finer than what such a row reported.
+  # ponytail: split by digits and bind if per-row step sizes ever matter.
   tested_df_seq <- reactive({
     method <- rounding_method()
-    df <- testable_data()
+    ti <- test_input()
+    inconsistent <- which(!tested_df()$consistency)
+    df <- ti$df[inconsistent, ]
+    validate(need(
+      nrow(df) > 0,
+      "No inconsistent cases to disperse from. All tested values are consistent."
+    ))
     items <- effective_items()
     is_percent <- percent()
     steps <- seq_len(dispersion_steps())
-    dp_x <- digits_x()
-    dp_sd <- if (input$name_test == "GRIM") NULL else digits_sd()
+    dp_x <- max(ti$digits_x[inconsistent])
+    dp_sd <- if (input$name_test == "GRIM") {
+      NULL
+    } else {
+      max(ti$digits_sd[inconsistent])
+    }
 
     out <- suppressWarnings(switch(
       input$name_test,
@@ -773,7 +830,9 @@ server <- function(input, output, session) {
       "No inconsistent cases to disperse from. All tested values are consistent."
     ))
 
-    out
+    # `case` counts rows of what the mapper saw; point it back at the rows of
+    # the results table above.
+    mutate(out, case = inconsistent[case])
   })
 
   output$output_df_seq <- renderTable({
@@ -798,7 +857,7 @@ server <- function(input, output, session) {
     tested_df_seq() |>
       plot_test_results(
         input$name_test,
-        input$plot_size_text
+        plot_size_text()
       )
   )
 

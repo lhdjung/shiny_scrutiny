@@ -43,10 +43,12 @@ rename_after_testing <- function(df, name_test, percent) {
   # effect if the data still include an `sd` column -- as does, notably, the
   # example dataset `pigs5`.
   names(df)[names(df) == "sd" | names(df) == "Sd"] <- "SD"
+  df <- rename(df, any_of(digits_labels))
 
-  # Rename by consistency test:
+  # Rename by consistency test. Since scrutiny 1.0.0, percentages are deflated
+  # internally only; the output still shows them as reported.
   if (name_test == "GRIM") {
-    mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
+    mean_or_percent <- if (percent) "Percentage" else "Mean"
     ratio_header <- if (percent) "percentages" else "means"
     ratio_header <- paste(
       "Probability of inconsistency for random",
@@ -80,8 +82,15 @@ rename_after_testing <- function(df, name_test, percent) {
   }
 }
 
+# scrutiny 1.0.0 reports the decimal places it tested at, per row.
+digits_labels <- c(
+  "Decimal places (mean)" = "Digits_x",
+  "Decimal places (SD)" = "Digits_sd"
+)
+
 # Renamed by name, not by position: a column added or moved upstream then keeps
 # its raw name instead of silently inheriting the label of a different column.
+# The test-3 caveat lives in the label so that it travels into downloads.
 rename_after_audit <- function(df, percent) {
   ratio_header <- paste(
     "Mean probability of inconsistency for random",
@@ -97,7 +106,7 @@ rename_after_audit <- function(df, percent) {
     "Failed GRIM" = "fail_grim",
     "Failed GRIMMER (test 1)" = "fail_test1",
     "Failed GRIMMER (test 2)" = "fail_test2",
-    "Failed GRIMMER (test 3)" = "fail_test3",
+    "Failed GRIMMER (test 3; unreliable, see scrutiny issue #80)" = "fail_test3",
     "Failed scale bounds" = "fail_scale",
     "Mean of means" = "mean_x",
     "Mean of SDs" = "mean_sd",
@@ -127,8 +136,9 @@ rename_key_vars <- function(name) {
 # The if-tree is necessary here; see the comment on `rename_after_testing()`.
 rename_after_testing_seq <- function(df, name_test, percent) {
   names(df) <- str_to_title(names(df))
+  df <- rename(df, any_of(digits_labels))
   if (name_test == "GRIM") {
-    mean_or_percent <- if (percent) "Percentage (deflated)" else "Mean"
+    mean_or_percent <- if (percent) "Percentage" else "Mean"
     df <- rename(
       df,
       "{mean_or_percent}" := X,
@@ -301,12 +311,18 @@ is_whole_number <- function(x, tolerance = .Machine$double.eps^0.5) {
   abs(x - round(x)) < tolerance
 }
 
-# Columns holding only whole numbers display better as integers. `x` and `sd`
-# are exempt: their decimal places carry the precision that GRIM and friends
-# test against, so a mean reported as "5.00" must not collapse to 5.
+# Double columns holding only whole numbers display better as integers. Only
+# doubles: a character column such as IDs "001" must keep its zeros, and `x` /
+# `sd` are kept as uploaded because their decimal places carry the precision
+# that GRIM and friends test against. Values beyond the integer range would
+# silently become NA, so such columns are left alone too.
 format_after_upload <- function(df) {
   is_integer_like_col <- function(col) {
-    is_numeric_like(col) && all(is_whole_number(as.numeric(col)), na.rm = TRUE)
+    is.double(col) &&
+      all(
+        is_whole_number(col) & abs(col) <= .Machine$integer.max,
+        na.rm = TRUE
+      )
   }
 
   cols_integer_like <- names(df)[
@@ -322,12 +338,13 @@ format_after_upload <- function(df) {
   )
 }
 
-# Decimal places to declare to scrutiny, which since 1.0.0 takes them as an
-# explicit argument rather than inferring them from trailing zeros in strings.
-# Uses whatever precision the column still shows, or the user's "Restore decimal
-# zeros" value, whichever is greater.
+# Decimal places to declare to scrutiny, one per row: since 1.0.0 it takes them
+# as an explicit argument rather than inferring them from trailing zeros in
+# strings. Each value is tested at the precision it still shows, or at the
+# user's "Restore decimal zeros" value, whichever is greater.
 digits_declared <- function(col, digits_min) {
-  max(c(digits_min, decimal_places(col)), na.rm = TRUE)
+  floor_digits <- if (isTRUE(digits_min >= 0)) as.integer(digits_min) else 0L
+  pmax(floor_digits, decimal_places(col), na.rm = TRUE)
 }
 
 format_download_file_name <- function(
