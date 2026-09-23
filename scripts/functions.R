@@ -327,6 +327,13 @@ grim_untestable <- function(df) {
   df$probability %in% 0
 }
 
+# Downloads keep the verdict logical, where an untestable row is NA: TRUE would
+# read as a pass.
+mark_untestable <- function(df) {
+  df$consistency[grim_untestable(df)] <- NA
+  df
+}
+
 # Offending values for an error message, so they can be found in the preview.
 quote_values <- function(values) {
   values <- unique(values)

@@ -411,6 +411,10 @@ testServer(shinyAppFile("app.R"), {
   do.call(session$setInputs, modifyList(base, list(input_df = upload(big))))
   check("an untestable row is labelled as such", grepl("Not testable", output$output_df))
   check("a tested row is not", grepl("Inconsistent", output$output_df))
+  check(
+    "an untestable row downloads as NA, not a pass",
+    identical(read.csv(output$download_consistency_test)$consistency, c(NA, FALSE))
+  )
 
   # Sequences step at each row's own precision, not the finest in the data.
   steps <- csv(c("x,n", "4.10,25", "4.5,3"))

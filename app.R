@@ -1027,6 +1027,7 @@ server <- function(input, output, session) {
     content = function(file) {
       write_download(
         tested_df() |>
+          mark_untestable() |>
           format_tested_values() |>
           rename_after_testing(
             name_test = input$name_test,
@@ -1066,6 +1067,7 @@ server <- function(input, output, session) {
     content = function(file) {
       write_download(
         tested_df_seq() |>
+          mark_untestable() |>
           format_tested_values() |>
           rename_after_testing_seq(
             name_test = input$name_test,
