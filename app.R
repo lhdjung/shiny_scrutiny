@@ -459,8 +459,9 @@ server <- function(input, output, session) {
       }
       is_european <- count_char(";") > count_char(",")
       loc <- if (is_european) {
-        # Not ".": a semicolon file with dot decimals would read 4.10 as 410.
-        # Such values stay text instead.
+        # Not ".": in a semicolon file with dot decimals, a column outside `x`
+        # and `sd` (which stay text) would read 4.10 as 410. Such values stay
+        # text instead; `n` gets its thousands separators removed below.
         locale(decimal_mark = ",", grouping_mark = "'")
       } else {
         default_locale()
@@ -504,6 +505,12 @@ server <- function(input, output, session) {
 
     # `x` and `sd` stay as uploaded; everything else gets its natural type.
     if (!input$use_example_data_pigs5) {
+      # A sample size is whole, so "1.200" in a European file can only be 1200.
+      # Only full groups of three: "40.0" is not one.
+      if (is_european && "n" %in% names(out)) {
+        grouped <- str_detect(out$n, "^\\d{1,3}(\\.\\d{3})+$") %in% TRUE
+        out$n[grouped] <- str_remove_all(out$n[grouped], fixed("."))
+      }
       cols_precise <- intersect(c("x", "sd"), names(out))
       cols_other <- setdiff(names(out), cols_precise)
       if (length(cols_other) > 0L) {

@@ -328,6 +328,10 @@ testServer(shinyAppFile("app.R"), {
     "semicolon file keeps dot decimals",
     !any(user_data()$other %in% c(410, 53))
   )
+  # ...but a European sample size may group thousands with ".".
+  euro_n <- csv(c("x;n", "4,10;1.200", "5,30;40"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(euro_n))))
+  check("European n keeps its thousands", identical(user_data()$n, c(1200L, 40L)))
 
   # Items only apply where the sidebar shows them. A value left in the hidden
   # field must not inflate `n` for percentages.
