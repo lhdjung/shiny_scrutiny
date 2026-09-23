@@ -401,6 +401,13 @@ testServer(shinyAppFile("app.R"), {
   # Verdicts read as words on screen, logical in downloads.
   check("results table labels verdicts", grepl("Inconsistent", output$output_df))
 
+  # At n = 1000, every one-decimal mean is attainable: GRIM
+  # passes 4.2 without testing it, and must not display that as a pass.
+  big <- csv(c("x,n", "4.2,1000", "4.10,25"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(big))))
+  check("an untestable row is labelled as such", grepl("Not testable", output$output_df))
+  check("a tested row is not", grepl("Inconsistent", output$output_df))
+
   # Sequences step at each row's own precision, not the finest in the data.
   steps <- csv(c("x,n", "4.10,25", "4.5,3"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(steps))))

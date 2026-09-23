@@ -13,6 +13,8 @@ Run the app locally using this R code:
 shiny::runGitHub("shiny_scrutiny", "lhdjung")
 ```
 
+It needs [scrutiny](https://lhdjung.github.io/scrutiny/) 1.0.0 or later.
+
 The app provides an intuitive web interface that brings the powers of scrutiny to the broader scientific public:
 
 -   Consistency testing with GRIM, GRIMMER, etc.

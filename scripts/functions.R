@@ -307,14 +307,24 @@ card_header_help <- function(title, help) {
 
 # On screen, a verdict reads better as a word than as TRUE / FALSE. Downloads
 # keep the logical column for analysis.
-label_consistency <- function(df) {
+label_consistency <- function(df, untestable = FALSE) {
   df$Consistency <- if_else(
     df$Consistency,
     "Consistent",
     "Inconsistent",
     missing = "Undecidable"
   )
+  df$Consistency[which(untestable)] <- "Not testable (sample too large)"
   df
+}
+
+# Once `n` reaches 10 ^ digits, every mean is attainable: GRIM passes the row
+# without having tested anything. Its probability of inconsistency is then 0.
+grim_untestable <- function(df) {
+  if (!"probability" %in% names(df)) {
+    return(FALSE)
+  }
+  df$probability %in% 0
 }
 
 # Offending values for an error message, so they can be found in the preview.

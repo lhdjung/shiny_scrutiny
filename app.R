@@ -8,6 +8,12 @@ library(stringr)
 library(janitor)
 library(scrutiny)
 
+# scrutiny 1.0.0 takes decimal places as `digits_x` / `digits_sd`; with an older
+# version, every test fails on those arguments.
+if (packageVersion("scrutiny") < "1.0.0") {
+  stop("This app needs scrutiny 1.0.0 or later.")
+}
+
 
 # Load helper functions:
 source("scripts/functions.R")
@@ -21,7 +27,7 @@ source("scripts/functions.R")
 # Define UI ---------------------------------------------------------------
 
 ui <- page_navbar(
-  title = "Error detection (beta 0.2.3)",
+  title = "Error detection (beta 0.3.0)",
   id = "nav",
   header = tags$style(".card-header { text-align: center; }"),
 
@@ -108,12 +114,6 @@ ui <- page_navbar(
           zeros to match the number chosen here or the greatest number \
           of decimal places from among them, whichever is greater."
         ),
-      # # TODO: implement item column merging
-      # conditionalPanel(
-      #   "input.merge_items != '' && (input.name_test === 'GRIM' || input.name_test === 'GRIMMER')",
-      #   checkboxInput("merge_items", label = "Merge items column", value = TRUE)
-      # ),
-      # Rounding:
       selectInput(
         "rounding",
         label = "Rounding method:",
@@ -815,13 +815,14 @@ server <- function(input, output, session) {
   })
 
   output$output_df <- renderTable({
-    tested_df() |>
+    df <- tested_df()
+    df |>
       format_tested_values() |>
       rename_after_testing(
         input$name_test,
         percent = percent()
       ) |>
-      label_consistency()
+      label_consistency(untestable = grim_untestable(df))
   })
 
   # The excluded rows travel with the summary, so that a downloaded rate
@@ -853,106 +854,107 @@ server <- function(input, output, session) {
 
   # Results of dispersed sequences:
 
-# The sequence mappers take a single `digits_x` / `digits_sd` per call, so
-# the rows flagged above are dispersed in groups of equal precision: each in
-# steps of the decimal places it was reported with.
-tested_seq_parts <- reactive({
-  method <- rounding_method()
-  ti <- test_input()
-  items <- effective_items()
-  is_percent <- percent()
-  steps <- seq_len(dispersion_steps())
-  msg_none <- "No inconsistent cases to disperse from. All tested values are consistent."
-  inconsistent <- which(!tested_df()$consistency)
-  validate(need(length(inconsistent) > 0L, msg_none))
+  # The sequence mappers take a single `digits_x` / `digits_sd` per call, so
+  # the rows flagged above are dispersed in groups of equal precision: each in
+  # steps of the decimal places it was reported with.
+  tested_seq_parts <- reactive({
+    method <- rounding_method()
+    ti <- test_input()
+    items <- effective_items()
+    is_percent <- percent()
+    steps <- seq_len(dispersion_steps())
+    msg_none <- "No inconsistent cases to disperse from. All tested values are consistent."
+    inconsistent <- which(!tested_df()$consistency)
+    validate(need(length(inconsistent) > 0L, msg_none))
 
-  groups <- split(
-    inconsistent,
-    paste(ti$digits_x[inconsistent], ti$digits_sd[inconsistent])
-  )
-  parts <- lapply(unname(groups), function(rows) {
-    df <- ti$df[rows, ]
-    dp_x <- ti$digits_x[rows[1L]]
-    dp_sd <- ti$digits_sd[rows[1L]] # NULL for GRIM
-    out <- suppressWarnings(switch(
-      input$name_test,
-      "GRIM" = grim_map_seq(
-        df,
-        digits_x = dp_x,
-        dispersion = steps,
-        items = items,
-        percent = is_percent,
-        rounding = method
-      ),
-      "GRIMMER" = grimmer_map_seq(
-        df,
-        digits_x = dp_x,
-        digits_sd = dp_sd,
-        dispersion = steps,
-        items = items,
-        rounding = method
-      ),
-      "DEBIT" = debit_map_seq(
-        df,
-        digits_x = dp_x,
-        digits_sd = dp_sd,
-        dispersion = steps,
-        rounding = method
+    groups <- split(
+      inconsistent,
+      paste(ti$digits_x[inconsistent], ti$digits_sd[inconsistent])
+    )
+    parts <- lapply(unname(groups), function(rows) {
+      df <- ti$df[rows, ]
+      dp_x <- ti$digits_x[rows[1L]]
+      dp_sd <- ti$digits_sd[rows[1L]] # NULL for GRIM
+      out <- suppressWarnings(switch(
+        input$name_test,
+        "GRIM" = grim_map_seq(
+          df,
+          digits_x = dp_x,
+          dispersion = steps,
+          items = items,
+          percent = is_percent,
+          rounding = method
+        ),
+        "GRIMMER" = grimmer_map_seq(
+          df,
+          digits_x = dp_x,
+          digits_sd = dp_sd,
+          dispersion = steps,
+          items = items,
+          rounding = method
+        ),
+        "DEBIT" = debit_map_seq(
+          df,
+          digits_x = dp_x,
+          digits_sd = dp_sd,
+          dispersion = steps,
+          rounding = method
+        )
+      ))
+      # `case` counts rows of what the mapper saw; point it back at the rows
+      # of the results table above.
+      out$case <- rows[out$case]
+      out
+    })
+    parts <- Filter(\(part) nrow(part) > 0L, parts)
+    validate(need(length(parts) > 0L, msg_none))
+    parts
+  })
+
+  # Binding drops scrutiny's classes, so the bound table is for display and
+  # download only; the summary and plot work on the parts.
+  tested_df_seq <- reactive({
+    arrange(bind_rows(tested_seq_parts()), case)
+  })
+
+  df_audit_seq <- reactive({
+    parts <- tested_seq_parts()
+    cases <- unlist(lapply(parts, \(part) unique(part$case)))
+    bind_rows(lapply(parts, audit_seq))[order(cases), ]
+  })
+
+  output$output_df_seq <- renderTable({
+    df <- tested_df_seq()
+    df |>
+      format_tested_values() |>
+      rename_after_testing_seq(
+        input$name_test,
+        percent = percent()
+      ) |>
+      label_consistency(untestable = grim_untestable(df))
+  })
+
+  output$output_df_audit_seq <- renderTable({
+    df_audit_seq() |>
+      mutate(across(
+        .cols = starts_with("hits") | starts_with("diff"),
+        .fns = as.integer
+      )) |>
+      rename_after_audit_seq(input$name_test) |>
+      label_consistency()
+  })
+
+  output$output_plot_seq <- renderPlot({
+    parts <- tested_seq_parts()
+    validate(need(
+      length(parts) == 1L,
+      paste(
+        "The plot needs inconsistent values reported at a single number of",
+        "decimal places. The sequences are unaffected."
       )
     ))
-    # `case` counts rows of what the mapper saw; point it back at the rows
-    # of the results table above.
-    out$case <- rows[out$case]
-    out
+    plot_test_results(parts[[1L]], input$name_test, plot_size_text())
   })
-  parts <- Filter(\(part) nrow(part) > 0L, parts)
-  validate(need(length(parts) > 0L, msg_none))
-  parts
-})
-
-# Binding drops scrutiny's classes, so the bound table is for display and
-# download only; the summary and plot work on the parts.
-tested_df_seq <- reactive({
-  arrange(bind_rows(tested_seq_parts()), case)
-})
-
-df_audit_seq <- reactive({
-  parts <- tested_seq_parts()
-  cases <- unlist(lapply(parts, \(part) unique(part$case)))
-  bind_rows(lapply(parts, audit_seq))[order(cases), ]
-})
-
-output$output_df_seq <- renderTable({
-  tested_df_seq() |>
-    format_tested_values() |>
-    rename_after_testing_seq(
-      input$name_test,
-      percent = percent()
-    ) |>
-    label_consistency()
-})
-
-output$output_df_audit_seq <- renderTable({
-  df_audit_seq() |>
-    mutate(across(
-      .cols = starts_with("hits") | starts_with("diff"),
-      .fns = as.integer
-    )) |>
-    rename_after_audit_seq(input$name_test) |>
-    label_consistency()
-})
-
-output$output_plot_seq <- renderPlot({
-  parts <- tested_seq_parts()
-  validate(need(
-    length(parts) == 1L,
-    paste(
-      "The plot needs inconsistent values reported at a single number of",
-      "decimal places. The sequences are unaffected."
-    )
-  ))
-  plot_test_results(parts[[1L]], input$name_test, plot_size_text())
-})
   # Server: duplicate analysis -------------------------------------------
 
   # Conduct the duplicate analyses:
