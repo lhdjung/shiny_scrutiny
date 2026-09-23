@@ -743,9 +743,11 @@ server <- function(input, output, session) {
         style = "color: orange;",
         sprintf(
           "\u26a0 Values in the \"%s\" column show between %d and %d decimal
-          places, and each is tested at its own precision. If the source
-          reported them all with %d, trailing zeros were lost (e.g., by
-          Excel): set \"Restore decimal zeros\" in the sidebar to %d.",
+          places, and each is tested at its own precision. Check the source:
+          if it reported them all with %d, trailing zeros were lost (e.g., by
+          Excel), so set \"Restore decimal zeros\" in the sidebar to %d. If it
+          really mixed precisions, leave the setting alone: padding values
+          reported with fewer decimals creates false inconsistencies.",
           name_col,
           min(digits),
           max(digits),
