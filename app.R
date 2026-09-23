@@ -498,8 +498,12 @@ server <- function(input, output, session) {
       validate(need(
         !key %in% names(out),
         paste0(
-          "ERROR: Column \"", name_given, "\" can't be used as \"", key,
-          "\" because the data already has a column named \"", key,
+          "ERROR: Column \"",
+          name_given,
+          "\" can't be used as \"",
+          key,
+          "\" because the data already has a column named \"",
+          key,
           "\". Rename that one in your file first."
         )
       ))
@@ -685,7 +689,9 @@ server <- function(input, output, session) {
       validate(need(
         length(bad) == 0L,
         paste0(
-          "ERROR: The \"", key, "\" column must contain numbers only. Found: ",
+          "ERROR: The \"",
+          key,
+          "\" column must contain numbers only. Found: ",
           quote_values(bad)
         )
       ))
