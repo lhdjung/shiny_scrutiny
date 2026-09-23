@@ -347,6 +347,19 @@ digits_declared <- function(col, digits_min) {
   pmax(floor_digits, decimal_places(col), na.rm = TRUE)
 }
 
+# A double can't carry trailing zeros, so a mean tested as 4.10 would display
+# and download as 4.1 -- a value that reads as consistent. Print the key values
+# at the precision they were tested at.
+format_tested_values <- function(df) {
+  if ("digits_x" %in% names(df)) {
+    df$x <- sprintf("%.*f", as.integer(df$digits_x), df$x)
+  }
+  if ("digits_sd" %in% names(df)) {
+    df$sd <- sprintf("%.*f", as.integer(df$digits_sd), df$sd)
+  }
+  df
+}
+
 format_download_file_name <- function(
   name_input_file,
   name_technique,

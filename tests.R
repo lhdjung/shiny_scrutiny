@@ -51,16 +51,29 @@ check(
   "digits are declared per row, floored by the user's value",
   identical(digits_declared(c(4.123, 5.3), 2), c(3L, 2L))
 )
-check("a blank digits field means no floor", all(digits_declared(c(4.1), NA) == 1))
+check(
+  "a blank digits field means no floor",
+  all(digits_declared(c(4.1), NA) == 1)
+)
 check(
   "all-NA column does not error",
   all(digits_declared(c(NA_real_, NA_real_), 0) == 0)
 )
 
 # Integer display conversion must never lose data.
-wide <- format_after_upload(tibble(id = c(1e10, 2e10), code = c("001", "002"), n = c(3, 4)))
-check("values beyond the integer range are kept", identical(wide$id, c(1e10, 2e10)))
-check("character IDs keep their leading zeros", identical(wide$code, c("001", "002")))
+wide <- format_after_upload(tibble(
+  id = c(1e10, 2e10),
+  code = c("001", "002"),
+  n = c(3, 4)
+))
+check(
+  "values beyond the integer range are kept",
+  identical(wide$id, c(1e10, 2e10))
+)
+check(
+  "character IDs keep their leading zeros",
+  identical(wide$code, c("001", "002"))
+)
 check("`n` still becomes integer", is.integer(wide$n))
 
 # Audit renaming is by name, so an extra upstream column keeps its own name
@@ -112,7 +125,10 @@ seqs <- list(
 for (name_test in names(seqs)) {
   check(
     paste(name_test, "sequence summary renames cleanly"),
-    is.data.frame(rename_after_audit_seq(audit_seq(seqs[[name_test]]), name_test))
+    is.data.frame(rename_after_audit_seq(
+      audit_seq(seqs[[name_test]]),
+      name_test
+    ))
   )
   check(
     paste(name_test, "sequence results rename cleanly"),
@@ -263,13 +279,104 @@ testServer(shinyAppFile("app.R"), {
   # European format: semicolons and comma decimal marks.
   euro <- csv(c("x;sd;n", "4,10;1,20;25", "5,30;0,50;40"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(euro))))
-  check("European decimal marks are normalised", identical(user_data()$x, c("4.10", "5.30")))
-  check("European sample sizes are numbers", identical(user_data()$n, c(25L, 40L)))
+  check(
+    "European decimal marks are normalised",
+    identical(user_data()$x, c("4.10", "5.30"))
+  )
+  check(
+    "European sample sizes are numbers",
+    identical(user_data()$n, c(25L, 40L))
+  )
   check("European 4,10 at n = 25 is inconsistent", !tested_df()$consistency[1])
 
+  # Displayed and downloaded at the tested precision: as a double, "4.10"
+  # prints as 4.1, which reads as consistent next to a FALSE verdict.
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(mixed))))
+  check(
+    "results table shows 4.10, not 4.1",
+    grepl("> 4.10 <", output$output_df)
+  )
+  check("results table shows 5.00 in full", grepl("> 5.00 <", output$output_df))
+  check(
+    "download keeps the tested precision",
+    identical(
+      read.csv(output$download_consistency_test, colClasses = "character")$mean,
+      c("4.1", "4.10", "5.00")
+    )
+  )
+  # grim_plot() errors on mixed precision; the app must say why instead.
+  check(
+    "plot on mixed precision is a message, not a crash",
+    inherits(
+      tryCatch(output$output_plot, error = identity),
+      "shiny.silent.error"
+    )
+  )
+
+  # A European file with only two columns has one ";" and no ",".
+  euro2 <- csv(c("x;n", "4,10;25", "5,30;40"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(euro2))))
+  check(
+    "two-column European file is detected",
+    identical(user_data()$x, c("4.10", "5.30"))
+  )
+
+  # Semicolons with dot decimals: "." must not be read as a grouping mark.
+  semi <- csv(c("x;n;other", "4.10;25;4.10", "5.30;40;5.3"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(semi))))
+  check(
+    "semicolon file keeps dot decimals",
+    !any(user_data()$other %in% c(410, 53))
+  )
+
+  # Items only apply where the sidebar shows them. A value left in the hidden
+  # field must not inflate `n` for percentages.
+  pct <- csv(c("x,n,k", "10.4,23,5"))
+  do.call(
+    session$setInputs,
+    modifyList(
+      base,
+      list(input_df = upload(pct), mean_percent = "Percentage", items = 5)
+    )
+  )
+  check(
+    "hidden items field is ignored for percentages",
+    effective_items() == 1L
+  )
+  check("10.4% at n = 23 stays inconsistent", !tested_df()$consistency)
+  session$setInputs(items_col = "k")
+  check("items column is not merged for percentages", testable_data()$n == 23L)
+  session$setInputs(name_test = "DEBIT", items = NA, items_col = "")
+  check(
+    "DEBIT is not blocked by the hidden items field",
+    effective_items() == 1L
+  )
+
+  # Duplicate analysis sees the data as uploaded, not with items merged into
+  # `n` -- that fabricated a duplicate between `n` and `other` (75, 80).
+  dup <- csv(c("x,n,k,other", "4.10,25,3,75", "5.30,40,2,80"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(dup), items_col = "k"))
+  )
+  check(
+    "upload keeps n and the items column",
+    identical(user_data()$n, c(25L, 40L)) && "k" %in% names(user_data())
+  )
+  check(
+    "the test still sees merged n",
+    identical(testable_data()$n, c(75L, 80L))
+  )
+
   # The example data gets its two decimal places back.
-  do.call(session$setInputs, modifyList(base, list(use_example_data_pigs5 = TRUE, name_test = "GRIMMER")))
-  check("example data is declared at 2 decimal places", all(test_input()$digits_x == 2L, test_input()$digits_sd == 2L))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(use_example_data_pigs5 = TRUE, name_test = "GRIMMER"))
+  )
+  check(
+    "example data is declared at 2 decimal places",
+    all(test_input()$digits_x == 2L, test_input()$digits_sd == 2L)
+  )
   check("GRIMMER on the example data runs", is.logical(tested_df()$consistency))
 })
 

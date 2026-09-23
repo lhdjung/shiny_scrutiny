@@ -51,7 +51,8 @@ ui <- page_navbar(
         tooltip(
           "If the data has a column with the number of scale items per mean, \
           enter its name here. Its integer values will be multiplied with the \
-          sample size column to form the effective sample size. Leave blank \
+          sample size column to form the effective sample size when testing \
+          means with GRIM or GRIMMER. Leave blank \
           to ignore."
         ),
       numericInput(
@@ -441,7 +442,10 @@ server <- function(input, output, session) {
     if (input$use_example_data_pigs5) {
       # scrutiny 1.0.0 stores `pigs5` as numbers; its values were reported to
       # two decimal places.
-      out <- mutate(pigs5, across(c(x, sd), \(col) restore_zeros(col, width = 2)))
+      out <- mutate(
+        pigs5,
+        across(c(x, sd), \(col) restore_zeros(col, width = 2))
+      )
       is_european <- FALSE
     } else {
       validate(need(input$input_df, "Upload data first."))
@@ -456,11 +460,13 @@ server <- function(input, output, session) {
       )
       validate(need(length(first_line) == 1L, "ERROR: The file is empty."))
       count_char <- function(char) {
-        lengths(gregexpr(char, first_line, fixed = TRUE))
+        nchar(first_line) - nchar(gsub(char, "", first_line, fixed = TRUE))
       }
       is_european <- count_char(";") > count_char(",")
       loc <- if (is_european) {
-        locale(decimal_mark = ",", grouping_mark = ".")
+        # Not ".": a semicolon file with dot decimals would read 4.10 as 410.
+        # Such values stay text instead.
+        locale(decimal_mark = ",", grouping_mark = "'")
       } else {
         default_locale()
       }
@@ -508,44 +514,6 @@ server <- function(input, output, session) {
       }
     }
 
-    # Merge items column into n if specified and present:
-    items_col_name <- input$items_col
-    if (items_col_active()) {
-      validate(need(
-        items_col_name %in% names(out),
-        paste0(
-          "ERROR: Items column \"",
-          items_col_name,
-          "\" not found in the data."
-        )
-      ))
-      items_vals <- out[[items_col_name]]
-      validate(need(
-        is.numeric(items_vals),
-        paste0(
-          "ERROR: The items column (\"",
-          items_col_name,
-          "\") must be a numeric ",
-          "column, not strings."
-        )
-      ))
-      validate(need(
-        is.numeric(out[["n"]]),
-        "ERROR: The sample size column must be numeric to merge with the items column."
-      ))
-      validate(need(
-        all(is_whole_number(items_vals), na.rm = TRUE),
-        paste0(
-          "ERROR: The items column (\"",
-          items_col_name,
-          "\") must contain ",
-          "whole numbers only."
-        )
-      ))
-      out$n <- out$n * as.integer(items_vals)
-      out[[items_col_name]] <- NULL
-    }
-
     format_after_upload(out)
   })
 
@@ -565,10 +533,18 @@ server <- function(input, output, session) {
     }
   })
 
+  # Items apply only where the sidebar shows them. A value left in the hidden
+  # field would otherwise multiply `n` for percentages, clearing real
+  # inconsistencies.
+  uses_items <- reactive({
+    input$name_test == "GRIMMER" ||
+      (input$name_test == "GRIM" && input$mean_percent == "Mean")
+  })
+
   # The merge has already folded the items into `n`, so scrutiny must not
   # multiply by them a second time.
   effective_items <- reactive({
-    if (items_col_active()) {
+    if (!uses_items() || items_col_active()) {
       return(1L)
     }
     validate(need(
@@ -614,12 +590,6 @@ server <- function(input, output, session) {
       c("x", "sd", "n")
     }
     df <- user_data()
-    df <- df[complete.cases(df[, intersect(required_cols, names(df))]), ]
-    # Drop any surviving "items" column. scrutiny consumes one silently and
-    # multiplies `n` by it, overriding the `items` argument. A column consumed
-    # by the merge is already gone from `user_data()`, so this only ever hits an
-    # unrelated leftover.
-    df[["items"]] <- NULL
     validate(need(
       all(required_cols %in% names(df)),
       paste0(
@@ -628,6 +598,52 @@ server <- function(input, output, session) {
         "\" column. Name it in the sidebar."
       )
     ))
+
+    # Merge the items column into `n` here, not at upload: duplicate analysis
+    # must see the data as uploaded, and DEBIT and percentages take no items.
+    items_col_name <- input$items_col
+    if (uses_items() && items_col_active()) {
+      validate(need(
+        items_col_name %in% names(df),
+        paste0(
+          "ERROR: Items column \"",
+          items_col_name,
+          "\" not found in the data."
+        )
+      ))
+      items_vals <- df[[items_col_name]]
+      validate(need(
+        is.numeric(items_vals),
+        paste0(
+          "ERROR: The items column (\"",
+          items_col_name,
+          "\") must be a numeric ",
+          "column, not strings."
+        )
+      ))
+      validate(need(
+        is.numeric(df[["n"]]),
+        "ERROR: The sample size column must be numeric to merge with the items column."
+      ))
+      validate(need(
+        all(is_whole_number(items_vals), na.rm = TRUE),
+        paste0(
+          "ERROR: The items column (\"",
+          items_col_name,
+          "\") must contain ",
+          "whole numbers only."
+        )
+      ))
+      df$n <- df$n * as.integer(items_vals)
+      df[[items_col_name]] <- NULL
+    }
+
+    df <- df[complete.cases(df[, required_cols]), ]
+    # Drop any surviving "items" column. scrutiny consumes one silently and
+    # multiplies `n` by it, overriding the `items` argument. A column consumed
+    # by the merge is already gone, so this only ever hits an unrelated
+    # leftover.
+    df[["items"]] <- NULL
     validate(need(
       nrow(df) > 0,
       "ERROR: No rows have all of the required columns."
@@ -748,6 +764,7 @@ server <- function(input, output, session) {
 
   output$output_df <- renderTable({
     tested_df() |>
+      format_tested_values() |>
       rename_after_testing(
         input$name_test,
         percent = percent()
@@ -763,13 +780,21 @@ server <- function(input, output, session) {
       rename_after_audit(percent())
   })
 
-  output$output_plot <- renderPlot(
-    tested_df() |>
-      plot_test_results(
-        input$name_test,
-        plot_size_text()
+  output$output_plot <- renderPlot({
+    df <- tested_df()
+    # grim_plot() draws one precision per raster and errors on a mix.
+    digits_seen <- sort(unique(df$digits_x))
+    validate(need(
+      input$name_test == "DEBIT" || length(digits_seen) == 1L,
+      paste0(
+        "The plot needs means reported at a single number of decimal ",
+        "places; these have ",
+        paste(digits_seen, collapse = ", "),
+        ". The test results are unaffected."
       )
-  )
+    ))
+    plot_test_results(df, input$name_test, plot_size_text())
+  })
 
   # Results of dispersed sequences:
 
@@ -837,6 +862,7 @@ server <- function(input, output, session) {
 
   output$output_df_seq <- renderTable({
     tested_df_seq() |>
+      format_tested_values() |>
       rename_after_testing_seq(
         input$name_test,
         percent = percent()
@@ -925,6 +951,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       tested_df() |>
+        format_tested_values() |>
         rename_after_testing(
           name_test = input$name_test,
           percent = percent()
@@ -961,6 +988,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       tested_df_seq() |>
+        format_tested_values() |>
         rename_after_testing_seq(
           name_test = input$name_test,
           percent = percent()
