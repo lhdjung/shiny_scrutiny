@@ -428,6 +428,21 @@ testServer(shinyAppFile("app.R"), {
   session$setInputs(dispersion = 150)
   check("dispersion above 100 is refused, not clamped", silent(tested_df_seq()))
 
+  # The sequence plot only needs one precision where the plot draws one.
+  plots <- function(expr) !inherits(tryCatch(expr, error = identity), "error")
+  sd_mix <- csv(c("x,sd,n", "4.10,1.20,25", "4.13,1.2,26"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(sd_mix), name_test = "GRIMMER"))
+  )
+  check("GRIMMER sequences mixing SD precision plot", plots(output$output_plot_seq))
+  debit_mix <- csv(c("x,sd,n", "0.53,0.20,40", "0.5,0.1,30"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(debit_mix), name_test = "DEBIT"))
+  )
+  check("DEBIT sequences at mixed precision plot", plots(output$output_plot_seq))
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,

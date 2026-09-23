@@ -845,17 +845,7 @@ server <- function(input, output, session) {
 
   output$output_plot <- renderPlot({
     df <- tested_df()
-    # grim_plot() draws one precision per raster and errors on a mix.
-    digits_seen <- sort(unique(df$digits_x))
-    validate(need(
-      input$name_test == "DEBIT" || length(digits_seen) == 1L,
-      paste0(
-        "The plot needs means reported at a single number of decimal ",
-        "places; these have ",
-        paste(digits_seen, collapse = ", "),
-        ". The test results are unaffected."
-      )
-    ))
+    validate_plot_precision(df, input$name_test)
     plot_test_results(df, input$name_test, plot_size_text())
   })
 
@@ -953,14 +943,12 @@ server <- function(input, output, session) {
 
   output$output_plot_seq <- renderPlot({
     parts <- tested_seq_parts()
-    validate(need(
-      length(parts) == 1L,
-      paste(
-        "The plot needs inconsistent values reported at a single number of",
-        "decimal places. The sequences are unaffected."
-      )
-    ))
-    plot_test_results(parts[[1L]], input$name_test, plot_size_text())
+    # Groups that differ only in the SD's precision share one raster. Binding
+    # drops the classes the plot reads, so they are put back.
+    df <- bind_rows(parts)
+    class(df) <- class(parts[[1L]])
+    validate_plot_precision(df, input$name_test)
+    plot_test_results(df, input$name_test, plot_size_text())
   })
   # Server: duplicate analysis -------------------------------------------
 
