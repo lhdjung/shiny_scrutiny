@@ -54,18 +54,6 @@ ui <- page_navbar(
           sample size column to form the effective sample size when testing \
           means with GRIM or GRIMMER. Leave blank \
           to ignore."
-        ),
-      numericInput(
-        "digits",
-        label = "Restore decimal zeros:",
-        value = 0L,
-        min = 0
-      ) |>
-        tooltip(
-          "Decimal numbers may have lost trailing zeros, but these are \
-          important when testing for consistency. They are padded with \
-          zeros to match the number chosen here or the greatest number \
-          of decimal places from among them, whichever is greater."
         )
     ),
 
@@ -108,6 +96,18 @@ ui <- page_navbar(
           ),
         uiOutput("items_conflict_warning")
       ),
+      numericInput(
+        "digits",
+        label = "Restore decimal zeros:",
+        value = 0L,
+        min = 0
+      ) |>
+        tooltip(
+          "Decimal numbers may have lost trailing zeros, but these are \
+          important when testing for consistency. They are padded with \
+          zeros to match the number chosen here or the greatest number \
+          of decimal places from among them, whichever is greater."
+        ),
       # # TODO: implement item column merging
       # conditionalPanel(
       #   "input.merge_items != '' && (input.name_test === 'GRIM' || input.name_test === 'GRIMMER')",
@@ -171,7 +171,7 @@ ui <- page_navbar(
 
     conditionalPanel(
       "input.nav === 'Duplicate analysis'",
-      downloadButton("download_duplicate_count", "Download\nfrequency table"),
+      downloadButton("download_duplicate_count", "Download frequency table"),
       downloadButton(
         "download_duplicate_count_audit",
         "Download summary (frequency table)"
@@ -209,13 +209,13 @@ ui <- page_navbar(
         uiOutput("text_info_upload")
       ),
       card(
-        card_header("Data preview"),
-        styled_table_div("uploaded_data")
-      ) |>
-        tooltip(
+        card_header_help(
+          "Data preview",
           "Your data. Rename columns in the sidebar on the left \
           if they don't already have the names shown there."
-        )
+        ),
+        styled_table_div("uploaded_data")
+      )
     )
   ),
 
@@ -224,38 +224,31 @@ ui <- page_navbar(
   nav_panel(
     "Consistency testing",
     uiOutput("dropped_rows_note"),
-
-    # Warning note for GRIMMER test 3 reliability
-    conditionalPanel(
-      "input.name_test === 'GRIMMER'",
-      card(
-        card_header(tags$strong("Warning")),
-        uiOutput("grimmer_test3_warning"),
-        full_screen = TRUE
-      )
-    ),
+    uiOutput("precision_note"),
 
     # Basic analyses -- two long cards side by side:
     layout_columns(
       col_widths = c(7, 5),
       card(
-        card_header("Results by case"),
+        card_header_help(
+          "Results by case",
+          "Your data, tested for consistency."
+        ),
         styled_table_div("output_df"),
         max_height = "500px",
         full_screen = TRUE
-      ) |>
-        tooltip("Your data, tested for consistency."),
+      ),
       card(
-        card_header("Visualization"),
-        plotOutput("output_plot"),
-        max_height = "500px",
-        full_screen = TRUE
-      ) |>
-        tooltip(
+        card_header_help(
+          "Visualization",
           "Blue: consistent, red: inconsistent. The grey background \
           flags all possible inconsistent combinations, whether \
           present in the data or not."
-        )
+        ),
+        plotOutput("output_plot"),
+        max_height = "500px",
+        full_screen = TRUE
+      )
     ),
     # Temporary note about partially incorrect info in the plot tooltips for
     # DEBIT -- they are simply the same as for GRIM and GRIMMER.
@@ -270,46 +263,45 @@ ui <- page_navbar(
     ),
     # Basic analyses -- one wide card below:
     card(
-      card_header("Summary of results by case"),
+      card_header_help(
+        "Summary of results by case",
+        "Simple summaries of testing your data."
+      ),
       styled_table_div("output_df_audit"),
       full_screen = TRUE
-    ) |>
-      tooltip("Simple summaries of testing your data."),
+    ),
     # Further analyses -- two long cards side by side:
     layout_columns(
       col_widths = c(7, 5),
       card(
-        card_header("Results of dispersed sequences"),
-        styled_table_div("output_df_seq"),
-        max_height = "500px",
-        full_screen = TRUE
-      ) |>
-        tooltip(
+        card_header_help(
+          "Results of dispersed sequences",
           "Checking the numeric neighborhood of inconsistent value sets \
           for consistent ones. Variables to the left of \"consistency\" \
           are marginally varied up and down, holding the other one(s) \
           constant each time."
         ),
-      card(
-        card_header("Visualization of dispersed sequences"),
-        plotOutput("output_plot_seq"),
+        styled_table_div("output_df_seq"),
         max_height = "500px",
         full_screen = TRUE
-      ) |>
-        tooltip(
+      ),
+      card(
+        card_header_help(
+          "Visualization of dispersed sequences",
           "Blue: consistent, red: inconsistent. The cross pattern emerges \
           because values are varied up and down along both axes.
           The grey background flags all inconsistent combinations, \
           whether present in the data or not."
-        )
+        ),
+        plotOutput("output_plot_seq"),
+        max_height = "500px",
+        full_screen = TRUE
+      )
     ),
     # Further analyses -- one wide card below:
     card(
-      card_header("Summary of dispersed sequences"),
-      styled_table_div("output_df_audit_seq"),
-      full_screen = TRUE
-    ) |>
-      tooltip(
+      card_header_help(
+        "Summary of dispersed sequences",
         "A \"hit\" is a consistent value set found by varying the \
         inconsistent numbers above. \"Hits for\" a variable \
         are those found by varying that variable. \"Least step difference\" \
@@ -317,7 +309,10 @@ ui <- page_navbar(
         of a variable and the nearby consistent ones. \
         They are split up by the direction of variation: upward and downward.
         \"NA\" indicates that no hits could be found in the respective way."
-      )
+      ),
+      styled_table_div("output_df_audit_seq"),
+      full_screen = TRUE
+    )
   ),
 
   # Nav panel: duplicate analysis --------------------------------------
@@ -325,29 +320,26 @@ ui <- page_navbar(
   nav_panel(
     "Duplicate analysis",
     card(
-      card_header("Frequency table"),
-      styled_table_div("output_duplicate_count"),
-      full_screen = TRUE
-    ) |>
-      tooltip(
+      card_header_help(
+        "Frequency table",
         "Ranked by the frequency. Locations are
         the names of the columns in your data where a given value appears."
       ),
-    card(
-      card_header("Summary (frequency table)"),
-      styled_table_div("output_duplicate_count_summary"),
+      styled_table_div("output_duplicate_count"),
       full_screen = TRUE
-    ) |>
-      tooltip(
+    ),
+    card(
+      card_header_help(
+        "Summary (frequency table)",
         "Summary statistics of the two numeric columns
         from the frequency table."
       ),
-    card(
-      card_header("Duplicates across columns"),
-      styled_table_div("output_duplicate_count_colpair"),
+      styled_table_div("output_duplicate_count_summary"),
       full_screen = TRUE
-    ) |>
-      tooltip(
+    ),
+    card(
+      card_header_help(
+        "Duplicates across columns",
         "This checks each pair of columns in your data for duplicates:
         values that appear in both columns. Shown on the right are
         the proportion of values in the original column 1 that are also
@@ -356,36 +348,39 @@ ui <- page_navbar(
         of the \"Total number\" columns in the center;
         they also exclude missing values."
       ),
-    card(
-      card_header("Summary (duplicates across columns)"),
-      styled_table_div("output_duplicate_count_colpair_summary"),
+      styled_table_div("output_duplicate_count_colpair"),
       full_screen = TRUE
-    ) |>
-      tooltip(
+    ),
+    card(
+      card_header_help(
+        "Summary (duplicates across columns)",
         "Summary statistics of all columns from the cross-column table
         (except for those that list the original columns from your data)."
       ),
-    card(
-      card_header("Value tally at original location"),
-      styled_table_div("output_duplicate_tally"),
+      styled_table_div("output_duplicate_count_colpair_summary"),
       full_screen = TRUE
-    ) |>
-      tooltip(
+    ),
+    card(
+      card_header_help(
+        "Value tally at original location",
         "Next to each column from your data, an \"_n\" column shows
         how often its values appear in the data overall.
         Note that the frequency of each value appears a number
         of times equal to the frequency itself."
       ),
-    card(
-      card_header("Summary (value tally at original location)"),
-      styled_table_div("output_duplicate_tally_summary"),
+      styled_table_div("output_duplicate_tally"),
       full_screen = TRUE
-    ) |>
-      tooltip(
+    ),
+    card(
+      card_header_help(
+        "Summary (value tally at original location)",
         "Summary statistics of the \"_n\" columns.
         Because the frequencies appear as often as their own value says,
         these statistics should be interpreted with caution."
-      )
+      ),
+      styled_table_div("output_duplicate_tally_summary"),
+      full_screen = TRUE
+    )
   ),
 
   # Nav panel: other elements ---------------------------------------------
@@ -431,7 +426,7 @@ server <- function(input, output, session) {
         doesn't require any specific columns."
       ),
       p(
-        "Hover over a panel for information about it."
+        "Select \u24d8 next to a panel's title for information about it."
       )
     )
   })
@@ -478,6 +473,9 @@ server <- function(input, output, session) {
         delim = if (is_european) ";" else NULL,
         col_types = cols(.default = col_character()),
         locale = loc,
+        # Placeholders that papers print for a missing value. Read as missing,
+        # the row is dropped and counted; as text, it blocked the whole test.
+        na = c("", "NA", "N/A", "n/a", "NR", "-", "\u2013", "\u2014"),
         trim_ws = TRUE,
         show_col_types = FALSE
       )
@@ -492,6 +490,14 @@ server <- function(input, output, session) {
       validate(need(
         name_given %in% names(out),
         paste0("ERROR: Column \"", name_given, "\" not found in the data.")
+      ))
+      validate(need(
+        !key %in% names(out),
+        paste0(
+          "ERROR: Column \"", name_given, "\" can't be used as \"", key,
+          "\" because the data already has a column named \"", key,
+          "\". Rename that one in your file first."
+        )
       ))
       out <- rename(out, !!key := !!name_given)
     }
@@ -517,11 +523,17 @@ server <- function(input, output, session) {
     format_after_upload(out)
   })
 
+  # A new upload means the user wants to see it, not the example data, which
+  # would otherwise keep silently taking precedence.
+  observeEvent(input$input_df, {
+    updateCheckboxInput(session, "use_example_data_pigs5", value = FALSE)
+  })
+
   name_input_file <- reactive({
     if (input$use_example_data_pigs5) {
       "example"
     } else {
-      req(input$input_df)$name
+      input$input_df$name %||% "data"
     }
   })
 
@@ -648,18 +660,24 @@ server <- function(input, output, session) {
       nrow(df) > 0,
       "ERROR: No rows have all of the required columns."
     ))
+    n_num <- suppressWarnings(as.numeric(df$n))
+    bad_n <- df$n[is.na(n_num) | !is_whole_number(n_num) | n_num <= 0]
     validate(need(
-      is_numeric_like(df$n) &&
-        all(
-          is_whole_number(as.numeric(df$n)) & as.numeric(df$n) > 0,
-          na.rm = TRUE
-        ),
-      "ERROR: The sample size column must contain positive whole numbers only."
+      length(bad_n) == 0L,
+      paste(
+        "ERROR: The sample size column must contain positive whole numbers",
+        "only. Found:",
+        quote_values(bad_n)
+      )
     ))
     for (key in setdiff(required_cols, "n")) {
+      bad <- df[[key]][is.na(suppressWarnings(as.numeric(df[[key]])))]
       validate(need(
-        is_numeric_like(df[[key]]),
-        paste0("ERROR: The \"", key, "\" column must contain numbers only.")
+        length(bad) == 0L,
+        paste0(
+          "ERROR: The \"", key, "\" column must contain numbers only. Found: ",
+          quote_values(bad)
+        )
       ))
     }
     df
@@ -683,8 +701,10 @@ server <- function(input, output, session) {
 
   # How many rows the tests never saw. Silence here would understate the
   # denominator of every rate the app reports.
+  n_dropped <- reactive(nrow(user_data()) - nrow(testable_data()))
+
   output$dropped_rows_note <- renderUI({
-    n_dropped <- nrow(user_data()) - nrow(testable_data())
+    n_dropped <- n_dropped()
     if (n_dropped < 1) {
       return(NULL)
     }
@@ -701,13 +721,45 @@ server <- function(input, output, session) {
     )
   })
 
-  # `numericInput` yields NA while the field is empty or out of bounds.
+  # Lost trailing zeros can't be detected, only suspected: a column whose
+  # values show different numbers of decimal places. Excel drops such zeros,
+  # and a lost zero only ever clears inconsistencies.
+  output$precision_note <- renderUI({
+    ti <- test_input()
+    notes <- lapply(c("x", "sd"), function(key) {
+      digits <- ti[[paste0("digits_", key)]]
+      if (length(unique(digits)) < 2L) {
+        return(NULL)
+      }
+      name_col <- if (nzchar(input[[key]])) input[[key]] else key
+      tags$p(
+        style = "color: orange;",
+        sprintf(
+          "\u26a0 Values in the \"%s\" column show between %d and %d decimal
+          places, and each is tested at its own precision. If the source
+          reported them all with %d, trailing zeros were lost (e.g., by
+          Excel): set \"Restore decimal zeros\" in the sidebar to %d.",
+          name_col,
+          min(digits),
+          max(digits),
+          max(digits),
+          max(digits)
+        )
+      )
+    })
+    htmltools::tagList(notes)
+  })
+
+  # `numericInput` yields NA while the field is empty, and its bounds don't
+  # stop typed values.
   dispersion_steps <- reactive({
     validate(need(
-      isTruthy(input$dispersion) && input$dispersion >= 1,
-      "ERROR: Dispersion must be a whole number of at least 1."
+      isTruthy(input$dispersion) &&
+        input$dispersion >= 1 &&
+        input$dispersion <= 100,
+      "ERROR: Dispersion must be a whole number from 1 to 100."
     ))
-    min(as.integer(input$dispersion), 100L)
+    as.integer(input$dispersion)
   })
 
   # Basic analyses:
@@ -768,11 +820,14 @@ server <- function(input, output, session) {
       rename_after_testing(
         input$name_test,
         percent = percent()
-      )
+      ) |>
+      label_consistency()
   })
 
+  # The excluded rows travel with the summary, so that a downloaded rate
+  # doesn't lose its denominator.
   df_audit <- reactive({
-    audit(tested_df())
+    mutate(audit(tested_df()), excluded_rows = n_dropped())
   })
 
   output$output_df_audit <- renderTable({
@@ -798,31 +853,27 @@ server <- function(input, output, session) {
 
   # Results of dispersed sequences:
 
-  # The sequence mappers take a single `digits_x` / `digits_sd` for the whole
-  # column, so they are given the rows already flagged above and the greatest
-  # precision among them. A value found inconsistent at its own precision stays
-  # inconsistent at any greater one, so no verdict changes; only the step size
-  # of the dispersion can be finer than what such a row reported.
-  # ponytail: split by digits and bind if per-row step sizes ever matter.
-  tested_df_seq <- reactive({
-    method <- rounding_method()
-    ti <- test_input()
-    inconsistent <- which(!tested_df()$consistency)
-    df <- ti$df[inconsistent, ]
-    validate(need(
-      nrow(df) > 0,
-      "No inconsistent cases to disperse from. All tested values are consistent."
-    ))
-    items <- effective_items()
-    is_percent <- percent()
-    steps <- seq_len(dispersion_steps())
-    dp_x <- max(ti$digits_x[inconsistent])
-    dp_sd <- if (input$name_test == "GRIM") {
-      NULL
-    } else {
-      max(ti$digits_sd[inconsistent])
-    }
+# The sequence mappers take a single `digits_x` / `digits_sd` per call, so
+# the rows flagged above are dispersed in groups of equal precision: each in
+# steps of the decimal places it was reported with.
+tested_seq_parts <- reactive({
+  method <- rounding_method()
+  ti <- test_input()
+  items <- effective_items()
+  is_percent <- percent()
+  steps <- seq_len(dispersion_steps())
+  msg_none <- "No inconsistent cases to disperse from. All tested values are consistent."
+  inconsistent <- which(!tested_df()$consistency)
+  validate(need(length(inconsistent) > 0L, msg_none))
 
+  groups <- split(
+    inconsistent,
+    paste(ti$digits_x[inconsistent], ti$digits_sd[inconsistent])
+  )
+  parts <- lapply(unname(groups), function(rows) {
+    df <- ti$df[rows, ]
+    dp_x <- ti$digits_x[rows[1L]]
+    dp_sd <- ti$digits_sd[rows[1L]] # NULL for GRIM
     out <- suppressWarnings(switch(
       input$name_test,
       "GRIM" = grim_map_seq(
@@ -849,44 +900,59 @@ server <- function(input, output, session) {
         rounding = method
       )
     ))
-
-    validate(need(
-      nrow(out) > 0,
-      "No inconsistent cases to disperse from. All tested values are consistent."
-    ))
-
-    # `case` counts rows of what the mapper saw; point it back at the rows of
-    # the results table above.
-    mutate(out, case = inconsistent[case])
+    # `case` counts rows of what the mapper saw; point it back at the rows
+    # of the results table above.
+    out$case <- rows[out$case]
+    out
   })
+  parts <- Filter(\(part) nrow(part) > 0L, parts)
+  validate(need(length(parts) > 0L, msg_none))
+  parts
+})
 
-  output$output_df_seq <- renderTable({
-    tested_df_seq() |>
-      format_tested_values() |>
-      rename_after_testing_seq(
-        input$name_test,
-        percent = percent()
-      )
-  })
+# Binding drops scrutiny's classes, so the bound table is for display and
+# download only; the summary and plot work on the parts.
+tested_df_seq <- reactive({
+  arrange(bind_rows(tested_seq_parts()), case)
+})
 
-  output$output_df_audit_seq <- renderTable({
-    tested_df_seq() |>
-      audit_seq() |>
-      mutate(across(
-        .cols = starts_with("hits") | starts_with("diff"),
-        .fns = as.integer
-      )) |>
-      rename_after_audit_seq(input$name_test)
-  })
+df_audit_seq <- reactive({
+  parts <- tested_seq_parts()
+  cases <- unlist(lapply(parts, \(part) unique(part$case)))
+  bind_rows(lapply(parts, audit_seq))[order(cases), ]
+})
 
-  output$output_plot_seq <- renderPlot(
-    tested_df_seq() |>
-      plot_test_results(
-        input$name_test,
-        plot_size_text()
-      )
-  )
+output$output_df_seq <- renderTable({
+  tested_df_seq() |>
+    format_tested_values() |>
+    rename_after_testing_seq(
+      input$name_test,
+      percent = percent()
+    ) |>
+    label_consistency()
+})
 
+output$output_df_audit_seq <- renderTable({
+  df_audit_seq() |>
+    mutate(across(
+      .cols = starts_with("hits") | starts_with("diff"),
+      .fns = as.integer
+    )) |>
+    rename_after_audit_seq(input$name_test) |>
+    label_consistency()
+})
+
+output$output_plot_seq <- renderPlot({
+  parts <- tested_seq_parts()
+  validate(need(
+    length(parts) == 1L,
+    paste(
+      "The plot needs inconsistent values reported at a single number of",
+      "decimal places. The sequences are unaffected."
+    )
+  ))
+  plot_test_results(parts[[1L]], input$name_test, plot_size_text())
+})
   # Server: duplicate analysis -------------------------------------------
 
   # Conduct the duplicate analyses:
@@ -950,14 +1016,15 @@ server <- function(input, output, session) {
       format_download_file_name(name_input_file(), input$name_test)
     },
     content = function(file) {
-      tested_df() |>
-        format_tested_values() |>
-        rename_after_testing(
-          name_test = input$name_test,
-          percent = percent()
-        ) |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        tested_df() |>
+          format_tested_values() |>
+          rename_after_testing(
+            name_test = input$name_test,
+            percent = percent()
+          ),
+        file
+      )
     }
   )
   # Summary of results by case:
@@ -970,10 +1037,11 @@ server <- function(input, output, session) {
       )
     },
     content = function(file) {
-      df_audit() |>
-        rename_after_audit(percent()) |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        df_audit() |>
+          rename_after_audit(percent()),
+        file
+      )
     }
   )
 
@@ -987,14 +1055,15 @@ server <- function(input, output, session) {
       )
     },
     content = function(file) {
-      tested_df_seq() |>
-        format_tested_values() |>
-        rename_after_testing_seq(
-          name_test = input$name_test,
-          percent = percent()
-        ) |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        tested_df_seq() |>
+          format_tested_values() |>
+          rename_after_testing_seq(
+            name_test = input$name_test,
+            percent = percent()
+          ),
+        file
+      )
     }
   )
   # Summary (dispersed sequences):
@@ -1007,11 +1076,11 @@ server <- function(input, output, session) {
       )
     },
     content = function(file) {
-      tested_df_seq() |>
-        audit_seq() |>
-        rename_after_audit_seq(input$name_test) |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        df_audit_seq() |>
+          rename_after_audit_seq(input$name_test),
+        file
+      )
     }
   )
 
@@ -1023,10 +1092,11 @@ server <- function(input, output, session) {
       format_download_file_name(name_input_file(), "duplicate_count")
     },
     content = function(file) {
-      duplicate_count_df() |>
-        rename_duplicate_count_df() |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        duplicate_count_df() |>
+          rename_duplicate_count_df(),
+        file
+      )
     }
   )
   # Summary (frequency table):
@@ -1039,11 +1109,12 @@ server <- function(input, output, session) {
       )
     },
     content = function(file) {
-      duplicate_count_df() |>
-        audit() |>
-        rename_duplicate_summary("count") |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        duplicate_count_df() |>
+          audit() |>
+          rename_duplicate_summary("count"),
+        file
+      )
     }
   )
 
@@ -1053,10 +1124,11 @@ server <- function(input, output, session) {
       format_download_file_name(name_input_file(), "duplicate_count_colpair")
     },
     content = function(file) {
-      duplicate_count_colpair_df() |>
-        rename_duplicate_count_colpair_df() |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        duplicate_count_colpair_df() |>
+          rename_duplicate_count_colpair_df(),
+        file
+      )
     }
   )
   # Summary (duplicates across columns):
@@ -1069,11 +1141,12 @@ server <- function(input, output, session) {
       )
     },
     content = function(file) {
-      duplicate_count_colpair_df() |>
-        audit() |>
-        rename_duplicate_summary("count_colpair") |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        duplicate_count_colpair_df() |>
+          audit() |>
+          rename_duplicate_summary("count_colpair"),
+        file
+      )
     }
   )
 
@@ -1083,9 +1156,10 @@ server <- function(input, output, session) {
       format_download_file_name(name_input_file(), "duplicate_tally")
     },
     content = function(file) {
-      duplicate_tally_df() |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        duplicate_tally_df(),
+        file
+      )
     }
   )
   # Summary (value tally at original location):
@@ -1098,11 +1172,12 @@ server <- function(input, output, session) {
       )
     },
     content = function(file) {
-      duplicate_tally_df() |>
-        audit() |>
-        rename_duplicate_summary("tally") |>
-        clean_names() |>
-        write_csv(file)
+      write_download(
+        duplicate_tally_df() |>
+          audit() |>
+          rename_duplicate_summary("tally"),
+        file
+      )
     }
   )
 
@@ -1110,19 +1185,9 @@ server <- function(input, output, session) {
 
   output$debit_plot_tooltip_note <- renderText({
     "If you hover over DEBIT plots, not all of the information
-    currently displyayed is correct. Blue and red do stand for
+    currently displayed is correct. Blue and red do stand for
     consistent and inconsistent value sets. All consistent value sets
     lie on the parabola."
-  })
-
-  output$grimmer_test3_warning <- renderUI({
-    HTML(paste(
-      "The results of GRIMMER's test 3 are currently not reliable.",
-      "This will be fixed in the future. (The first two tests and GRIM",
-      "are not affected.) For more information, see:",
-      "<a href='https://github.com/lhdjung/scrutiny/issues/80'>",
-      "https://github.com/lhdjung/scrutiny/issues/80</a>"
-    ))
   })
 
   output$text_about <- renderUI({

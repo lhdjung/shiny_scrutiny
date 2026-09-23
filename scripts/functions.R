@@ -90,7 +90,6 @@ digits_labels <- c(
 
 # Renamed by name, not by position: a column added or moved upstream then keeps
 # its raw name instead of silently inheriting the label of a different column.
-# The test-3 caveat lives in the label so that it travels into downloads.
 rename_after_audit <- function(df, percent) {
   ratio_header <- paste(
     "Mean probability of inconsistency for random",
@@ -106,11 +105,12 @@ rename_after_audit <- function(df, percent) {
     "Failed GRIM" = "fail_grim",
     "Failed GRIMMER (test 1)" = "fail_test1",
     "Failed GRIMMER (test 2)" = "fail_test2",
-    "Failed GRIMMER (test 3; unreliable, see scrutiny issue #80)" = "fail_test3",
+    "Failed GRIMMER (test 3)" = "fail_test3",
     "Failed scale bounds" = "fail_scale",
     "Mean of means" = "mean_x",
     "Mean of SDs" = "mean_sd",
-    "Distinct sample sizes" = "distinct_n"
+    "Distinct sample sizes" = "distinct_n",
+    "Rows excluded (missing values)" = "excluded_rows"
   )
   cols[ratio_header] <- "mean_grim_prob"
   rename(df, any_of(cols))
@@ -286,6 +286,57 @@ rename_duplicate_summary <- function(df, function_ending) {
 
 
 # UI helpers --------------------------------------------------------------
+
+# Help sits on an icon in the header rather than on the whole card, where it
+# popped up over the table whenever the pointer was on it. A button, so that it
+# can be reached by keyboard and by tapping.
+card_header_help <- function(title, help) {
+  card_header(
+    title,
+    tooltip(
+      tags$button(
+        type = "button",
+        class = "btn btn-link p-0 ms-1 align-baseline",
+        `aria-label` = paste("About:", title),
+        "\u24d8"
+      ),
+      help
+    )
+  )
+}
+
+# On screen, a verdict reads better as a word than as TRUE / FALSE. Downloads
+# keep the logical column for analysis.
+label_consistency <- function(df) {
+  df$Consistency <- if_else(
+    df$Consistency,
+    "Consistent",
+    "Inconsistent",
+    missing = "Undecidable"
+  )
+  df
+}
+
+# Offending values for an error message, so they can be found in the preview.
+quote_values <- function(values) {
+  values <- unique(values)
+  more <- if (length(values) > 5L) ", ..." else ""
+  paste0("\"", head(values, 5L), "\"", collapse = ", ") |> paste0(more)
+}
+
+# A download that hits a validate() message would otherwise just fail in the
+# browser, without saying why. `df` is forced here so that its error is caught.
+write_download <- function(df, file) {
+  df <- tryCatch(df, error = function(e) {
+    msg <- conditionMessage(e)
+    showNotification(
+      if (nzchar(msg)) msg else "Nothing to download yet.",
+      type = "error"
+    )
+    stop(e)
+  })
+  write_csv(clean_names(df), file)
+}
 
 # Create a centered, scrollable table div with custom styling
 styled_table_div <- function(output_id) {
