@@ -427,6 +427,8 @@ testServer(shinyAppFile("app.R"), {
 
   session$setInputs(dispersion = 150)
   check("dispersion above 100 is refused, not clamped", silent(tested_df_seq()))
+  session$setInputs(dispersion = 2.5)
+  check("fractional dispersion is refused, not truncated", silent(tested_df_seq()))
 
   # The sequence plot only needs one precision where the plot draws one.
   plots <- function(expr) !inherits(tryCatch(expr, error = identity), "error")

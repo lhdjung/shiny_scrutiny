@@ -763,7 +763,8 @@ server <- function(input, output, session) {
     validate(need(
       isTruthy(input$dispersion) &&
         input$dispersion >= 1 &&
-        input$dispersion <= 100,
+        input$dispersion <= 100 &&
+        is_whole_number(input$dispersion),
       "ERROR: Dispersion must be a whole number from 1 to 100."
     ))
     as.integer(input$dispersion)
