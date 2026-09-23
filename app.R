@@ -11,7 +11,10 @@ library(scrutiny)
 # scrutiny 1.0.0 takes decimal places as `digits_x` / `digits_sd`; with an older
 # version, every test fails on those arguments.
 if (packageVersion("scrutiny") < "1.0.0") {
-  stop("This app needs scrutiny 1.0.0 or later.")
+  stop(
+    "This app needs scrutiny 1.0.0 or later. Install it with ",
+    "remotes::install_github(\"lhdjung/scrutiny\")."
+  )
 }
 
 

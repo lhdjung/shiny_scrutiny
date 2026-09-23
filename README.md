@@ -13,7 +13,12 @@ Run the app locally using this R code:
 shiny::runGitHub("shiny_scrutiny", "lhdjung")
 ```
 
-It needs [scrutiny](https://lhdjung.github.io/scrutiny/) 1.0.0 or later.
+It needs [scrutiny](https://lhdjung.github.io/scrutiny/) 1.0.0 or later. Until that version is on CRAN, install it from GitHub:
+
+```
+# install.packages("remotes")
+remotes::install_github("lhdjung/scrutiny")
+```
 
 The app provides an intuitive web interface that brings the powers of scrutiny to the broader scientific public:
 
