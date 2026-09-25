@@ -331,7 +331,10 @@ testServer(shinyAppFile("app.R"), {
   # ...but a European sample size may group thousands with ".".
   euro_n <- csv(c("x;n", "4,10;1.200", "5,30;40"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(euro_n))))
-  check("European n keeps its thousands", identical(user_data()$n, c(1200L, 40L)))
+  check(
+    "European n keeps its thousands",
+    identical(user_data()$n, c(1200L, 40L))
+  )
 
   # Items only apply where the sidebar shows them. A value left in the hidden
   # field must not inflate `n` for percentages.
@@ -376,59 +379,107 @@ testServer(shinyAppFile("app.R"), {
   silent <- function(expr) {
     inherits(tryCatch(expr, error = identity), "shiny.silent.error")
   }
-  fail_msg <- function(expr) tryCatch({expr; ""}, error = conditionMessage)
+  fail_msg <- function(expr) {
+    tryCatch(
+      {
+        expr
+        ""
+      },
+      error = conditionMessage
+    )
+  }
 
   # Mapping onto a name the data already uses is explained, not a vctrs error.
   coll <- csv(c("x,mean,n", "1,4.10,25"))
-  do.call(session$setInputs, modifyList(base, list(input_df = upload(coll), x = "mean")))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(coll), x = "mean"))
+  )
   check("column-name collision is a validation message", silent(user_data()))
 
   # A printed placeholder is a missing value: the row is dropped and counted.
   ph <- csv(c("x,n", "4.10,25", "-,40", "NR,40", "5.30,40"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(ph))))
-  check("placeholders are dropped, not fatal", nrow(testable_data()) == 2L && n_dropped() == 2L)
+  check(
+    "placeholders are dropped, not fatal",
+    nrow(testable_data()) == 2L && n_dropped() == 2L
+  )
   check(
     "the summary carries the excluded rows",
     df_audit()$excluded_rows == 2L &&
-      "Rows excluded (missing values)" %in% names(rename_after_audit(df_audit(), FALSE))
+      "Rows excluded (missing values)" %in%
+        names(rename_after_audit(df_audit(), FALSE))
   )
   bad <- csv(c("x,n", "4.10,25", "abc,40"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(bad))))
-  check("a non-number is named in the message", grepl('"abc"', fail_msg(testable_data())))
+  check(
+    "a non-number is named in the message",
+    grepl('"abc"', fail_msg(testable_data()))
+  )
 
   # Mixed precision is pointed out until the user declares one.
   do.call(session$setInputs, modifyList(base, list(input_df = upload(mixed))))
-  check("mixed precision gets a note", grepl("between 1 and 2", output$precision_note$html))
+  check(
+    "mixed precision gets a note",
+    grepl("between 1 and 2", output$precision_note$html)
+  )
   session$setInputs(digits = 2)
-  check("the note goes once precision is declared", !nzchar(output$precision_note$html))
+  check(
+    "the note goes once precision is declared",
+    !nzchar(output$precision_note$html)
+  )
 
   # Verdicts read as words on screen, logical in downloads.
-  check("results table labels verdicts", grepl("Inconsistent", output$output_df))
+  check(
+    "results table labels verdicts",
+    grepl("Inconsistent", output$output_df)
+  )
 
   # At n = 1000, every one-decimal mean is attainable: GRIM
   # passes 4.2 without testing it, and must not display that as a pass.
   big <- csv(c("x,n", "4.2,1000", "4.10,25"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(big))))
-  check("an untestable row is labelled as such", grepl("Not testable", output$output_df))
+  check(
+    "an untestable row is labelled as such",
+    grepl("Not testable", output$output_df)
+  )
   check("a tested row is not", grepl("Inconsistent", output$output_df))
   check(
     "an untestable row downloads as NA, not a pass",
-    identical(read.csv(output$download_consistency_test)$consistency, c(NA, FALSE))
+    identical(
+      read.csv(output$download_consistency_test)$consistency,
+      c(NA, FALSE)
+    )
   )
 
   # Sequences step at each row's own precision, not the finest in the data.
   steps <- csv(c("x,n", "4.10,25", "4.5,3"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(steps))))
-  check("both rows are flagged", identical(tested_df()$consistency, c(FALSE, FALSE)))
+  check(
+    "both rows are flagged",
+    identical(tested_df()$consistency, c(FALSE, FALSE))
+  )
   seq_digits <- distinct(tested_df_seq(), case, digits_x)
-  check("each row is dispersed at its own precision", identical(seq_digits$digits_x, c(2L, 1L)))
-  check("sequence summary has one row per case, in order", identical(df_audit_seq()$x, c(4.1, 4.5)))
-  check("sequence plot on mixed precision is a message", silent(output$output_plot_seq))
+  check(
+    "each row is dispersed at its own precision",
+    identical(seq_digits$digits_x, c(2L, 1L))
+  )
+  check(
+    "sequence summary has one row per case, in order",
+    identical(df_audit_seq()$x, c(4.1, 4.5))
+  )
+  check(
+    "sequence plot on mixed precision is a message",
+    silent(output$output_plot_seq)
+  )
 
   session$setInputs(dispersion = 150)
   check("dispersion above 100 is refused, not clamped", silent(tested_df_seq()))
   session$setInputs(dispersion = 2.5)
-  check("fractional dispersion is refused, not truncated", silent(tested_df_seq()))
+  check(
+    "fractional dispersion is refused, not truncated",
+    silent(tested_df_seq())
+  )
 
   # The sequence plot only needs one precision where the plot draws one.
   plots <- function(expr) !inherits(tryCatch(expr, error = identity), "error")
@@ -437,13 +488,19 @@ testServer(shinyAppFile("app.R"), {
     session$setInputs,
     modifyList(base, list(input_df = upload(sd_mix), name_test = "GRIMMER"))
   )
-  check("GRIMMER sequences mixing SD precision plot", plots(output$output_plot_seq))
+  check(
+    "GRIMMER sequences mixing SD precision plot",
+    plots(output$output_plot_seq)
+  )
   debit_mix <- csv(c("x,sd,n", "0.53,0.20,40", "0.5,0.1,30"))
   do.call(
     session$setInputs,
     modifyList(base, list(input_df = upload(debit_mix), name_test = "DEBIT"))
   )
-  check("DEBIT sequences at mixed precision plot", plots(output$output_plot_seq))
+  check(
+    "DEBIT sequences at mixed precision plot",
+    plots(output$output_plot_seq)
+  )
 
   # The example data gets its two decimal places back.
   do.call(
