@@ -523,6 +523,32 @@ testServer(shinyAppFile("app.R"), {
   )
   check("row 2's mean stays consistent", isTRUE(tested_df()$consistency[2]))
 
+  # Duplicate analysis compares `x` / `sd` with the other columns on equal
+  # terms: "5.30" kept as text never matched 5.3 typed as a number.
+  dup_zeros <- csv(c(
+    "x,sd,n,other,other2",
+    "5.30,1.20,25,5.30,1.20",
+    "4.10,0.80,40,9.99,0.8"
+  ))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(dup_zeros)))
+  )
+  pairs <- duplicate_count_colpair_df()
+  shared <- function(a, b) pairs$count[pairs$x == a & pairs$y == b]
+  check(
+    "duplicates between x and another column are found",
+    shared("x", "other") == 1L
+  )
+  check(
+    "duplicates between sd and another column are found",
+    shared("sd", "other2") == 2L
+  )
+  check(
+    "the upload itself keeps the zeros",
+    identical(user_data()$x[1], "5.30")
+  )
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,

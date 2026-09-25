@@ -981,17 +981,28 @@ server <- function(input, output, session) {
   })
   # Server: duplicate analysis -------------------------------------------
 
+  # `x` and `sd` are kept as text for their trailing zeros, but every other
+  # column was typed on upload, which drops them. Compared as strings, "5.30"
+  # in `x` would then never match 5.3 elsewhere. Type them the same way here.
+  # (European decimal marks in `x` / `sd` are already normalised to ".".)
+  duplicate_data <- reactive({
+    df <- user_data()
+    cols <- intersect(c("x", "sd"), names(df))
+    df[cols] <- suppressMessages(type_convert(df[cols]))
+    df
+  })
+
   # Conduct the duplicate analyses:
   duplicate_count_df <- reactive({
-    user_data() |>
+    duplicate_data() |>
       duplicate_count()
   })
   duplicate_count_colpair_df <- reactive({
-    user_data() |>
+    duplicate_data() |>
       duplicate_count_colpair()
   })
   duplicate_tally_df <- reactive({
-    user_data() |>
+    duplicate_data() |>
       duplicate_tally()
   })
 
