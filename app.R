@@ -111,7 +111,8 @@ ui <- page_navbar(
         "digits_x",
         label = "Restore decimal zeros (mean):",
         value = 0L,
-        min = 0
+        min = 0,
+        max = max_digits
       ) |>
         tooltip(
           "Decimal numbers may have lost trailing zeros, but these are \
@@ -125,7 +126,8 @@ ui <- page_navbar(
           "digits_sd",
           label = "Restore decimal zeros (SD):",
           value = 0L,
-          min = 0
+          min = 0,
+          max = max_digits
         ) |>
           tooltip(
             "As above, for the standard deviations: each is tested at the \
@@ -739,6 +741,21 @@ server <- function(input, output, session) {
   # `digits_sd`. Taken from the same rows so that the two line up.
   test_input <- reactive({
     df <- testable_data()
+    # A blank field means no floor. Otherwise, 2.9 was truncated to 2 and 40
+    # tested every value at 40 decimal places. `numericInput` bounds don't
+    # stop typed values.
+    for (key in if (input$name_test == "GRIM") "x" else c("x", "sd")) {
+      value <- input[[paste0("digits_", key)]]
+      validate(need(
+        !isTruthy(value) ||
+          (value >= 0 && value <= max_digits && is_whole_number(value)),
+        sprintf(
+          "ERROR: \"Restore decimal zeros (%s)\" must be a whole number from 0 to %d.",
+          if (key == "x") "mean" else "SD",
+          max_digits
+        )
+      ))
+    }
     list(
       df = mutate(df, across(any_of(c("x", "sd")), as.numeric)),
       digits_x = digits_declared(df$x, input$digits_x),

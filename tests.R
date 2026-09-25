@@ -594,6 +594,25 @@ testServer(shinyAppFile("app.R"), {
     grepl("0.30000000000000004", fail_msg(testable_data()), fixed = TRUE)
   )
 
+  # The decimal-zeros fields are validated like the other numeric inputs.
+  digits_in <- csv(c("x,sd,n", "4.1,1.2,25"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(digits_in), digits_x = 2.9))
+  )
+  check(
+    "a fractional mean floor is refused, not truncated",
+    silent(test_input())
+  )
+  session$setInputs(digits_x = 40)
+  check("an absurd mean floor is refused", silent(test_input()))
+  session$setInputs(digits_x = NA)
+  check("a blank mean floor means none", identical(test_input()$digits_x, 1L))
+  session$setInputs(name_test = "GRIMMER", digits_sd = -1)
+  check("a negative SD floor is refused", silent(test_input()))
+  session$setInputs(name_test = "GRIM")
+  check("the hidden SD field doesn't block GRIM", !silent(test_input()))
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,
