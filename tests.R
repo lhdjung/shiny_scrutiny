@@ -646,6 +646,18 @@ testServer(shinyAppFile("app.R"), {
       !grepl("> Mean <", output$output_df_seq)
   )
 
+  # A header without rows is explained, not a raw error in the summaries.
+  header_only <- csv("x,n")
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(header_only)))
+  )
+  check(
+    "a header-only file is a message",
+    silent(output$output_duplicate_count_summary) &&
+      silent(output$output_duplicate_tally_summary)
+  )
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,

@@ -504,6 +504,8 @@ server <- function(input, output, session) {
         trim_ws = TRUE,
         show_col_types = FALSE
       )
+      # Otherwise, the duplicate summaries fail on an empty table.
+      validate(need(nrow(out) > 0L, "ERROR: The file has no data rows."))
     }
 
     # Rename the key columns if their names are not "x" and "n" etc.:
