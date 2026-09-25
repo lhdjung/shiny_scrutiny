@@ -105,18 +105,34 @@ ui <- page_navbar(
           ),
         uiOutput("items_conflict_warning")
       ),
+      # One per column: a floor raised for lost zeros in one column would pad
+      # correctly reported values in the other, flagging them falsely.
       numericInput(
-        "digits",
-        label = "Restore decimal zeros:",
+        "digits_x",
+        label = "Restore decimal zeros (mean):",
         value = 0L,
         min = 0
       ) |>
         tooltip(
           "Decimal numbers may have lost trailing zeros, but these are \
-          important when testing for consistency. They are padded with \
-          zeros to match the number chosen here or the greatest number \
-          of decimal places from among them, whichever is greater."
+          important when testing for consistency. Each mean is tested at \
+          the number of decimal places it shows or the number chosen here, \
+          whichever is greater."
         ),
+      conditionalPanel(
+        "input.name_test !== 'GRIM'",
+        numericInput(
+          "digits_sd",
+          label = "Restore decimal zeros (SD):",
+          value = 0L,
+          min = 0
+        ) |>
+          tooltip(
+            "As above, for the standard deviations: each is tested at the \
+            number of decimal places it shows or the number chosen here, \
+            whichever is greater."
+          )
+      ),
       selectInput(
         "rounding",
         label = "Rounding method:",
@@ -706,11 +722,11 @@ server <- function(input, output, session) {
     df <- testable_data()
     list(
       df = mutate(df, across(any_of(c("x", "sd")), as.numeric)),
-      digits_x = digits_declared(df$x, input$digits),
+      digits_x = digits_declared(df$x, input$digits_x),
       digits_sd = if (input$name_test == "GRIM") {
         NULL
       } else {
-        digits_declared(df$sd, input$digits)
+        digits_declared(df$sd, input$digits_sd)
       }
     )
   })
@@ -754,13 +770,14 @@ server <- function(input, output, session) {
           "\u26a0 Values in the \"%s\" column show between %d and %d decimal
           places, and each is tested at its own precision. Check the source:
           if it reported them all with %d, trailing zeros were lost (e.g., by
-          Excel), so set \"Restore decimal zeros\" in the sidebar to %d. If it
-          really mixed precisions, leave the setting alone: padding values
-          reported with fewer decimals creates false inconsistencies.",
+          Excel), so set \"Restore decimal zeros (%s)\" in the sidebar to %d.
+          If it really mixed precisions, leave the setting alone: padding
+          values reported with fewer decimals creates false inconsistencies.",
           name_col,
           min(digits),
           max(digits),
           max(digits),
+          if (key == "x") "mean" else "SD",
           max(digits)
         )
       )

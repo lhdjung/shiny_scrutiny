@@ -45,7 +45,8 @@ check(
   )$consistency[1]
 )
 
-# `input$digits` is the floor, used when readr already dropped the zeros.
+# `input$digits_x` / `input$digits_sd` is the floor, used when readr already
+# dropped the zeros.
 check("user-declared digits win", all(digits_declared(c(4.1, 5.3), 2) == 2))
 check(
   "digits are declared per row, floored by the user's value",
@@ -189,7 +190,8 @@ base <- list(
   sd = "sd",
   n = "n",
   items_col = "",
-  digits = 0,
+  digits_x = 0,
+  digits_sd = 0,
   name_test = "GRIM",
   mean_percent = "Mean",
   items = 1,
@@ -220,7 +222,7 @@ testServer(shinyAppFile("app.R"), {
         input_df = upload(clash),
         items_col = "n_items",
         items = 1,
-        digits = 2
+        digits_x = 2
       )
     )
   )
@@ -272,7 +274,7 @@ testServer(shinyAppFile("app.R"), {
     nrow(df_audit_seq()) == 1L
   )
   check("the user can raise the floor", {
-    session$setInputs(digits = 2)
+    session$setInputs(digits_x = 2)
     identical(tested_df()$consistency, c(FALSE, FALSE, TRUE))
   })
 
@@ -423,7 +425,7 @@ testServer(shinyAppFile("app.R"), {
     "mixed precision gets a note",
     grepl("between 1 and 2", output$precision_note$html)
   )
-  session$setInputs(digits = 2)
+  session$setInputs(digits_x = 2)
   check(
     "the note goes once precision is declared",
     !nzchar(output$precision_note$html)
@@ -501,6 +503,25 @@ testServer(shinyAppFile("app.R"), {
     "DEBIT sequences at mixed precision plot",
     plots(output$output_plot_seq)
   )
+
+  # Restoring zeros in one column must not pad the other. Means are uniformly
+  # at 2 dp; one SD lost a zero. With a shared floor, following the note for
+  # the SDs tested row 2's mean at 3 dp and flagged it.
+  sd_zeros <- csv(c("x,sd,n", "5.19,1.234,21", "3.43,1.23,28", "2.71,2.345,21"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(sd_zeros), name_test = "GRIMMER"))
+  )
+  check(
+    "the SD note names the SD setting",
+    grepl("zeros \\(SD\\)", output$precision_note$html)
+  )
+  session$setInputs(digits_sd = 3)
+  check(
+    "restoring SD zeros leaves the means alone",
+    all(test_input()$digits_x == 2L)
+  )
+  check("row 2's mean stays consistent", isTRUE(tested_df()$consistency[2]))
 
   # The example data gets its two decimal places back.
   do.call(
