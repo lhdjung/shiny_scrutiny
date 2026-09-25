@@ -626,6 +626,26 @@ testServer(shinyAppFile("app.R"), {
       grepl('"0", "2.5"', items_msg, fixed = TRUE)
   )
 
+  # Percentages are labelled as such in the sequence tables too.
+  pct_seq <- csv(c("x,n", "10.4,23"))
+  do.call(
+    session$setInputs,
+    modifyList(
+      base,
+      list(input_df = upload(pct_seq), mean_percent = "Percentage")
+    )
+  )
+  check(
+    "sequence summary says Percentage, not Mean",
+    grepl("Hits for Percentage", output$output_df_audit_seq) &&
+      !grepl("Mean", output$output_df_audit_seq)
+  )
+  check(
+    "sequence results name the varied percentage",
+    grepl("> Percentage <", output$output_df_seq) &&
+      !grepl("> Mean <", output$output_df_seq)
+  )
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,

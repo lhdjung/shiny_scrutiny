@@ -170,12 +170,16 @@ rename_after_testing_seq <- function(df, name_test, percent) {
     )
   }
   df$Variable <- vapply(df$Variable, rename_key_vars, character(1L))
+  if (isTRUE(percent)) {
+    df$Variable[df$Variable == "Mean"] <- "Percentage"
+  }
   df
 }
 
 
-rename_after_audit_seq <- function(df, name_test) {
-  df |>
+# For GRIM on percentages, "Mean" becomes "Percentage", as in the tables above.
+rename_after_audit_seq <- function(df, name_test, percent = FALSE) {
+  df <- df |>
     set_names(switch(
       name_test,
       "GRIM" = c(
@@ -231,6 +235,10 @@ rename_after_audit_seq <- function(df, name_test) {
         "Least step difference in N (downward)"
       )
     ))
+  if (isTRUE(percent)) {
+    names(df) <- sub("Mean", "Percentage", names(df), fixed = TRUE)
+  }
+  df
 }
 
 

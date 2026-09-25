@@ -1007,7 +1007,7 @@ server <- function(input, output, session) {
         .cols = starts_with("hits") | starts_with("diff"),
         .fns = as.integer
       )) |>
-      rename_after_audit_seq(input$name_test) |>
+      rename_after_audit_seq(input$name_test, percent()) |>
       label_consistency()
   })
 
@@ -1158,7 +1158,7 @@ server <- function(input, output, session) {
     content = function(file) {
       write_download(
         df_audit_seq() |>
-          rename_after_audit_seq(input$name_test),
+          rename_after_audit_seq(input$name_test, percent()),
         file
       )
     }
