@@ -168,8 +168,8 @@ for (m in methods_ui) {
 
 suppressMessages(library(shiny))
 
-csv <- function(text) {
-  path <- tempfile(fileext = ".csv")
+csv <- function(text, ext = ".csv") {
+  path <- tempfile(fileext = ext)
   writeLines(text, path)
   path
 }
@@ -547,6 +547,28 @@ testServer(shinyAppFile("app.R"), {
   check(
     "the upload itself keeps the zeros",
     identical(user_data()$x[1], "5.30")
+  )
+
+  # The delimiter comes from the header, not from readr's guess, which failed
+  # on these, or from a bare ";" test, which read the TSV as European.
+  one_col <- csv(c("a", "1", "2", "1"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(one_col))))
+  check("a one-column file is read", identical(user_data()$a, c(1L, 2L, 1L)))
+  empty_col <- csv(c("a,b", "x,", "y,"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(empty_col)))
+  )
+  check(
+    "a file with an empty column is read",
+    identical(names(user_data()), c("a", "b"))
+  )
+  tsv <- csv(c("x\tn\tnote; p.3", "4.10\t25\ta", "5.30\t40\tb"), ".tsv")
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(tsv))))
+  check(
+    "a TSV with ';' in its header is not read as European",
+    identical(names(user_data()), c("x", "n", "note; p.3")) &&
+      identical(user_data()$x, c("4.10", "5.30"))
   )
 
   # The example data gets its two decimal places back.

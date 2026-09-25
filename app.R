@@ -463,9 +463,10 @@ server <- function(input, output, session) {
       is_european <- FALSE
     } else {
       validate(need(input$input_df, "Upload data first."))
-      # Detect European CSV format (semicolon-delimited, comma decimal mark).
-      # Counting both separators beats testing for a bare ";", which misreads a
-      # comma-delimited file whose header merely contains one.
+      # Take the delimiter from the header: the most frequent of the three,
+      # "," if none occurs. readr's own guess fails on a one-column file or an
+      # empty column, and a bare ";" test misread a TSV whose header had one.
+      # A semicolon file is taken to be European (comma decimal mark).
       first_line <- readLines(
         input$input_df$datapath,
         n = 1L,
@@ -476,7 +477,9 @@ server <- function(input, output, session) {
       count_char <- function(char) {
         nchar(first_line) - nchar(gsub(char, "", first_line, fixed = TRUE))
       }
-      is_european <- count_char(";") > count_char(",")
+      delims <- c(",", ";", "\t")
+      delim <- delims[which.max(vapply(delims, count_char, integer(1L)))]
+      is_european <- delim == ";"
       loc <- if (is_european) {
         # Not ".": in a semicolon file with dot decimals, a column outside `x`
         # and `sd` (which stay text) would read 4.10 as 410. Such values stay
@@ -490,7 +493,7 @@ server <- function(input, output, session) {
       # non-key columns are converted below, once the key columns are known.
       out <- read_delim(
         input$input_df$datapath,
-        delim = if (is_european) ";" else NULL,
+        delim = delim,
         col_types = cols(.default = col_character()),
         locale = loc,
         # Placeholders that papers print for a missing value. Read as missing,
