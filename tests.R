@@ -613,6 +613,19 @@ testServer(shinyAppFile("app.R"), {
   session$setInputs(name_test = "GRIM")
   check("the hidden SD field doesn't block GRIM", !silent(test_input()))
 
+  # A bad items value is blamed on the items column, not on the sample size.
+  zero_items <- csv(c("x,n,k", "4.10,25,0", "5.30,40,2.5", "5.30,40,"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(input_df = upload(zero_items), items_col = "k"))
+  )
+  items_msg <- fail_msg(testable_data())
+  check(
+    "the items column is named, with its bad values",
+    grepl('items column ("k")', items_msg, fixed = TRUE) &&
+      grepl('"0", "2.5"', items_msg, fixed = TRUE)
+  )
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,

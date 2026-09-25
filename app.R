@@ -672,13 +672,18 @@ server <- function(input, output, session) {
         is.numeric(df[["n"]]),
         "ERROR: The sample size column must be numeric to merge with the items column."
       ))
+      # Checked here: a 0 would otherwise surface as a bad sample size.
+      bad_items <- items_vals[
+        !is_whole_number(items_vals) | items_vals < 1
+      ]
+      bad_items <- bad_items[!is.na(bad_items)]
       validate(need(
-        all(is_whole_number(items_vals), na.rm = TRUE),
+        length(bad_items) == 0L,
         paste0(
           "ERROR: The items column (\"",
           items_col_name,
-          "\") must contain ",
-          "whole numbers only."
+          "\") must contain positive whole numbers only. Found: ",
+          quote_values(bad_items)
         )
       ))
       df$n <- df$n * as.integer(items_vals)
