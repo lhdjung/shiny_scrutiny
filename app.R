@@ -687,8 +687,9 @@ server <- function(input, output, session) {
     # Drop any surviving "items" column. scrutiny consumes one silently and
     # multiplies `n` by it, overriding the `items` argument. A column consumed
     # by the merge is already gone, so this only ever hits an unrelated
-    # leftover.
-    df[["items"]] <- NULL
+    # leftover. A "consistency" column, as in the app's own downloads, makes
+    # every mapper error; the test recomputes it anyway.
+    df <- select(df, -any_of(c("items", "consistency")))
     validate(need(
       nrow(df) > 0,
       "ERROR: No rows have all of the required columns."

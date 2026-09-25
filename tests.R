@@ -571,6 +571,20 @@ testServer(shinyAppFile("app.R"), {
       identical(user_data()$x, c("4.10", "5.30"))
   )
 
+  # A file downloaded from the app carries a `consistency` column, which made
+  # every mapper error. It is recomputed instead.
+  redo <- csv(c("x,sd,n,consistency", "0.53,0.50,25,TRUE"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(redo))))
+  check(
+    "re-uploaded results are tested afresh",
+    identical(tested_df()$consistency, FALSE)
+  )
+  session$setInputs(name_test = "DEBIT")
+  check(
+    "...by DEBIT too",
+    !silent(tested_df()) && is.logical(tested_df()$consistency)
+  )
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,
