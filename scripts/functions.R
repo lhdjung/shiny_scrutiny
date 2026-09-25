@@ -421,6 +421,11 @@ format_after_upload <- function(df) {
   )
 }
 
+# No paper reports more decimal places than this. A value showing more, like
+# 0.30000000000000004, is a floating-point artefact of the software that wrote
+# the file, and testing it at that precision flags it falsely.
+max_digits <- 9L
+
 # Decimal places to declare to scrutiny, one per row: since 1.0.0 it takes them
 # as an explicit argument rather than inferring them from trailing zeros in
 # strings. Each value is tested at the precision it still shows, or at the

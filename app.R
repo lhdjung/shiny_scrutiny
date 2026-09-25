@@ -715,6 +715,21 @@ server <- function(input, output, session) {
           quote_values(bad)
         )
       ))
+      too_fine <- df[[key]][decimal_places(df[[key]]) > max_digits]
+      validate(need(
+        length(too_fine) == 0L,
+        paste0(
+          "ERROR: Values in the \"",
+          key,
+          "\" column show more than ",
+          max_digits,
+          " decimal places, which no paper reports. They are likely ",
+          "rounding artefacts of the software that wrote the file, as in ",
+          "0.30000000000000004 for 0.3. Round them in the file to the ",
+          "precision the source reported. Found: ",
+          quote_values(too_fine)
+        )
+      ))
     }
     df
   })

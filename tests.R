@@ -585,6 +585,15 @@ testServer(shinyAppFile("app.R"), {
     !silent(tested_df()) && is.logical(tested_df()$consistency)
   )
 
+  # A float artefact was tested at 17 decimal places and flagged, though 0.3
+  # is consistent at n = 10. It is refused instead, and named.
+  float <- csv(c("x,n", "0.30000000000000004,10", "4.1,25"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(float))))
+  check(
+    "a float artefact is refused and named",
+    grepl("0.30000000000000004", fail_msg(testable_data()), fixed = TRUE)
+  )
+
   # The example data gets its two decimal places back.
   do.call(
     session$setInputs,
