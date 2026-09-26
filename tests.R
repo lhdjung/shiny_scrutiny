@@ -296,9 +296,12 @@ testServer(shinyAppFile("app.R"), {
   do.call(session$setInputs, modifyList(base, list(input_df = upload(mixed))))
   check(
     "results table shows 4.10, not 4.1",
-    grepl("> 4.10 <", output$output_df)
+    identical(results_display()$Mean[2], "4.10")
   )
-  check("results table shows 5.00 in full", grepl("> 5.00 <", output$output_df))
+  check(
+    "results table shows 5.00 in full",
+    identical(results_display()$Mean[3], "5.00")
+  )
   check(
     "download keeps the tested precision",
     identical(
@@ -434,7 +437,7 @@ testServer(shinyAppFile("app.R"), {
   # Verdicts read as words on screen, logical in downloads.
   check(
     "results table labels verdicts",
-    grepl("Inconsistent", output$output_df)
+    "Inconsistent" %in% results_display()$Consistency
   )
 
   # At n = 1000, every one-decimal mean is attainable: GRIM
@@ -443,9 +446,12 @@ testServer(shinyAppFile("app.R"), {
   do.call(session$setInputs, modifyList(base, list(input_df = upload(big))))
   check(
     "an untestable row is labelled as such",
-    grepl("Not testable", output$output_df)
+    startsWith(results_display()$Consistency[1], "Not testable")
   )
-  check("a tested row is not", grepl("Inconsistent", output$output_df))
+  check(
+    "a tested row is not",
+    identical(results_display()$Consistency[2], "Inconsistent")
+  )
   check(
     "an untestable row downloads as NA, not a pass",
     identical(
@@ -642,8 +648,9 @@ testServer(shinyAppFile("app.R"), {
   )
   check(
     "sequence results name the varied percentage",
-    grepl("> Percentage <", output$output_df_seq) &&
-      !grepl("> Mean <", output$output_df_seq)
+    "Percentage" %in%
+      results_seq_display()$Variable &&
+      !"Mean" %in% results_seq_display()$Variable
   )
 
   # A header without rows is explained, not a raw error in the summaries.
@@ -656,6 +663,21 @@ testServer(shinyAppFile("app.R"), {
     "a header-only file is a message",
     silent(output$output_duplicate_count_summary) &&
       silent(output$output_duplicate_tally_summary)
+  )
+
+  # Long tables are paged; short ones look as before. Rows keep their order,
+  # which the case numbers of the sequences refer to.
+  long <- csv(c("x,n", paste0("4.", 10:49, ",25")))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(long))))
+  paged <- function(df) long_table(df)$x$options
+  check("a long table gets a pager", identical(paged(user_data())$dom, "ftip"))
+  check("a short table does not", identical(paged(head(user_data()))$dom, "t"))
+  check("rows are not re-sorted", identical(paged(user_data())$order, list()))
+  check(
+    "paged tables render",
+    !inherits(tryCatch(output$uploaded_data, error = identity), "error") &&
+      !inherits(tryCatch(output$output_df, error = identity), "error") &&
+      !inherits(tryCatch(output$output_df_seq, error = identity), "error")
   )
 
   # The example data gets its two decimal places back.

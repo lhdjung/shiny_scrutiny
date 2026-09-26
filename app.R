@@ -235,7 +235,7 @@ ui <- page_navbar(
           "Your data. Rename columns in the sidebar on the left \
           if they don't already have the names shown there."
         ),
-        styled_table_div("uploaded_data")
+        DT::DTOutput("uploaded_data")
       )
     )
   ),
@@ -255,7 +255,7 @@ ui <- page_navbar(
           "Results by case",
           "Your data, tested for consistency."
         ),
-        styled_table_div("output_df"),
+        DT::DTOutput("output_df"),
         max_height = "500px",
         full_screen = TRUE
       ),
@@ -302,7 +302,7 @@ ui <- page_navbar(
           are marginally varied up and down, holding the other one(s) \
           constant each time."
         ),
-        styled_table_div("output_df_seq"),
+        DT::DTOutput("output_df_seq"),
         max_height = "500px",
         full_screen = TRUE
       ),
@@ -346,7 +346,7 @@ ui <- page_navbar(
         "Ranked by the frequency. Locations are
         the names of the columns in your data where a given value appears."
       ),
-      styled_table_div("output_duplicate_count"),
+      DT::DTOutput("output_duplicate_count"),
       full_screen = TRUE
     ),
     card(
@@ -389,7 +389,7 @@ ui <- page_navbar(
         Note that the frequency of each value appears a number
         of times equal to the frequency itself."
       ),
-      styled_table_div("output_duplicate_tally"),
+      DT::DTOutput("output_duplicate_tally"),
       full_screen = TRUE
     ),
     card(
@@ -619,9 +619,7 @@ server <- function(input, output, session) {
   })
 
   # Display uploaded data:
-  output$uploaded_data <- renderTable({
-    user_data()
-  })
+  output$uploaded_data <- DT::renderDT(long_table(user_data()))
 
   # Server: consistency testing -------------------------------------------
 
@@ -900,7 +898,9 @@ server <- function(input, output, session) {
     out
   })
 
-  output$output_df <- renderTable({
+  # What the results table shows: values at their tested precision, verdicts
+  # in words.
+  results_display <- reactive({
     df <- tested_df()
     df |>
       format_tested_values() |>
@@ -910,6 +910,8 @@ server <- function(input, output, session) {
       ) |>
       label_consistency(untestable = grim_untestable(df))
   })
+
+  output$output_df <- DT::renderDT(long_table(results_display()))
 
   # The excluded rows travel with the summary, so that a downloaded rate
   # doesn't lose its denominator.
@@ -999,7 +1001,7 @@ server <- function(input, output, session) {
     bind_rows(lapply(parts, audit_seq))[order(cases), ]
   })
 
-  output$output_df_seq <- renderTable({
+  results_seq_display <- reactive({
     df <- tested_df_seq()
     df |>
       format_tested_values() |>
@@ -1009,6 +1011,8 @@ server <- function(input, output, session) {
       ) |>
       label_consistency(untestable = grim_untestable(df))
   })
+
+  output$output_df_seq <- DT::renderDT(long_table(results_seq_display()))
 
   output$output_df_audit_seq <- renderTable({
     df_audit_seq() |>
@@ -1057,17 +1061,16 @@ server <- function(input, output, session) {
   })
 
   # Display the duplicate analyses:
-  output$output_duplicate_count <- renderTable({
-    duplicate_count_df() |>
-      rename_duplicate_count_df()
-  })
+  output$output_duplicate_count <- DT::renderDT(
+    long_table(rename_duplicate_count_df(duplicate_count_df()))
+  )
   output$output_duplicate_count_colpair <- renderTable({
     duplicate_count_colpair_df() |>
       rename_duplicate_count_colpair_df()
   })
-  output$output_duplicate_tally <- renderTable({
-    duplicate_tally_df()
-  })
+  output$output_duplicate_tally <- DT::renderDT(
+    long_table(duplicate_tally_df())
+  )
 
   # Summarize the duplicate analyses:
   output$output_duplicate_count_summary <- renderTable({

@@ -378,6 +378,23 @@ write_download <- function(df, file) {
   write_csv(clean_names(df), file)
 }
 
+# Tables that grow with the upload are paged on the server, so the browser only
+# holds one page: 10,000 rows took 1.7 s to show as a plain table, 0.2 s paged.
+# Short ones look as before, without search box and pager. Rows keep their
+# order, which case numbers refer to.
+long_table <- function(df) {
+  DT::datatable(
+    df,
+    rownames = FALSE,
+    options = list(
+      pageLength = 25L,
+      order = list(),
+      scrollX = TRUE,
+      dom = if (nrow(df) > 25L) "ftip" else "t"
+    )
+  )
+}
+
 # Create a centered, scrollable table div with custom styling
 styled_table_div <- function(output_id) {
   div(
