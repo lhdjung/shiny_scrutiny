@@ -764,7 +764,14 @@ server <- function(input, output, session) {
       ))
     }
     list(
-      df = mutate(df, across(any_of(c("x", "sd")), as.numeric)),
+      # An `sd` that GRIM doesn't test stays as uploaded, zeros and all.
+      df = mutate(
+        df,
+        across(
+          any_of(if (input$name_test == "GRIM") "x" else c("x", "sd")),
+          as.numeric
+        )
+      ),
       digits_x = digits_declared(df$x, input$digits_x),
       digits_sd = if (input$name_test == "GRIM") {
         NULL

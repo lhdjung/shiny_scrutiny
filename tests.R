@@ -668,6 +668,11 @@ testServer(shinyAppFile("app.R"), {
     all(test_input()$digits_x == 2L, test_input()$digits_sd == 2L)
   )
   check("GRIMMER on the example data runs", is.logical(tested_df()$consistency))
+  session$setInputs(name_test = "GRIM")
+  check(
+    "an SD that GRIM doesn't test is shown as uploaded",
+    identical(tested_df()$sd[1], "5.30")
+  )
 })
 
 cat("\nAll checks passed.\n")
