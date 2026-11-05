@@ -103,7 +103,8 @@ ui <- page_navbar(
             such as 4 for a mean over four questions. This is not the \
             number of scale points. Use 1 for a single item."
           ),
-        uiOutput("items_conflict_warning")
+        uiOutput("items_conflict_warning"),
+        uiOutput("items_column_hint")
       ),
       # One per column: a floor raised for lost zeros in one column would pad
       # correctly reported values in the other, flagging them falsely.
@@ -602,6 +603,20 @@ server <- function(input, output, session) {
       tags$p(
         style = "color: orange; font-size: 0.85em;",
         "\u26a0 \u201cItems averaged per score\u201d is ignored because an items column is active."
+      )
+    }
+  })
+
+  # scrutiny's own name for the items column, but only the sidebar decides.
+  output$items_column_hint <- renderUI({
+    if (
+      "items_averaged" %in% names(user_data()) &&
+        !identical(input$items_col, "items_averaged")
+    ) {
+      tags$p(
+        style = "color: orange; font-size: 0.85em;",
+        "\u26a0 The data\u2019s \u201citems_averaged\u201d column is not used. \
+        To use it, enter it as the items column."
       )
     }
   })

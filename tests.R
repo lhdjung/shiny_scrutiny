@@ -256,6 +256,17 @@ testServer(shinyAppFile("app.R"), {
     "an uploaded `items_averaged` column doesn't override the sidebar",
     identical(testable_data()$items_averaged, 1L)
   )
+  check(
+    "...and the sidebar says so",
+    grepl("is not used", output$items_column_hint$html)
+  )
+  session$setInputs(items_col = "items_averaged")
+  check(
+    "naming it as the items column uses it",
+    identical(testable_data()$items_averaged, 9L) &&
+      is.null(output$items_column_hint)
+  )
+  session$setInputs(items_col = "")
   gap <- csv(c("x,n,k", "5.30,40,3", "4.10,25,"))
   do.call(
     session$setInputs,
