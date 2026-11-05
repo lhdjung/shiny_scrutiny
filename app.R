@@ -975,19 +975,14 @@ server <- function(input, output, session) {
           rounding = method
         )
       ))
-      # `case` counts rows of what the mapper saw. It is left alone here,
-      # since `audit_seq()` refuses edited output; `rows` points it back at
-      # the rows of the results table above.
-      out <- list(out)
-      attr(out, "rows") <- rows
-      out
+      # `case` counts rows of what the mapper saw. It is left alone in
+      # `out`, since `audit_seq()` refuses edited output; `case` points it
+      # back at the rows of the results table above.
+      list(out = out, case = rows[out$case])
     })
-    parts <- Filter(\(part) nrow(part[[1L]]) > 0L, parts)
+    parts <- Filter(\(part) nrow(part$out) > 0L, parts)
     validate(need(length(parts) > 0L, msg_none))
-    list(
-      out = lapply(parts, `[[`, 1L),
-      case = lapply(parts, \(part) attr(part, "rows")[part[[1L]]$case])
-    )
+    list(out = lapply(parts, `[[`, "out"), case = lapply(parts, `[[`, "case"))
   })
 
   # The bound table is for display and download only; the summary and plot
@@ -1029,6 +1024,8 @@ server <- function(input, output, session) {
     parts <- tested_seq_parts()$out
     # Groups that differ only in the SD's precision share one raster. The
     # plot reads the class and the recorded settings, which all parts share.
+    # This copies scrutiny's internal attributes; the sequence plot checks in
+    # tests.R fail if their layout changes.
     df <- bind_plain(parts)
     attributes(df)[c("class", "scrutiny")] <- attributes(parts[[1L]])[c(
       "class",
