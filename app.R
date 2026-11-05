@@ -688,7 +688,11 @@ server <- function(input, output, session) {
     if (!is.null(items)) {
       df$items_averaged <- as.integer(items)
     }
-    df <- df[complete.cases(df[, required_cols]), ]
+    # A missing item count would otherwise come back as "Undecidable".
+    df <- df[complete.cases(df[, intersect(
+      c(required_cols, "items_averaged"),
+      names(df)
+    )]), ]
     validate(need(
       nrow(df) > 0,
       "ERROR: No rows have all of the required columns."

@@ -256,6 +256,15 @@ testServer(shinyAppFile("app.R"), {
     "an uploaded `items_averaged` column doesn't override the sidebar",
     identical(testable_data()$items_averaged, 1L)
   )
+  gap <- csv(c("x,n,k", "5.30,40,3", "4.10,25,"))
+  do.call(
+    session$setInputs,
+    modifyList(base, list(items_col = "k", input_df = upload(gap)))
+  )
+  check(
+    "a missing item count excludes the row instead of reading as undecidable",
+    nrow(testable_data()) == 1L && n_dropped() == 1L
+  )
 
   # Trailing zeros survive the upload, and each row is tested at the
   # precision it was reported with: "4.10" is inconsistent at n = 25, "4.1"
