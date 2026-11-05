@@ -263,8 +263,9 @@ ui <- page_navbar(
         card_header_help(
           "Visualization",
           "Teal: consistent, rust: inconsistent. For GRIM and GRIMMER, the \
-          grey background flags all inconsistent combinations, whether \
-          present in the data or not."
+          grey background flags all combinations of mean and sample size \
+          that fail GRIM, whether present in the data or not. A GRIMMER \
+          inconsistency can also lie outside of it."
         ),
         plotOutput("output_plot"),
         max_height = "500px",
@@ -300,8 +301,9 @@ ui <- page_navbar(
           "Visualization of dispersed sequences",
           "Teal: consistent, rust: inconsistent. The cross pattern emerges \
           because values are varied up and down along both axes.
-          The grey background flags all inconsistent combinations, \
-          whether present in the data or not."
+          For GRIM and GRIMMER, the grey background flags all combinations \
+          of mean and sample size that fail GRIM, whether present in the \
+          data or not."
         ),
         plotOutput("output_plot_seq"),
         max_height = "500px",
