@@ -1046,8 +1046,12 @@ server <- function(input, output, session) {
       duplicate_count()
   })
   duplicate_count_colpair_df <- reactive({
-    duplicate_data() |>
-      duplicate_count_colpair()
+    df <- duplicate_data()
+    validate(need(
+      ncol(df) >= 2L,
+      "Comparing columns needs at least two of them."
+    ))
+    duplicate_count_colpair(df)
   })
   duplicate_tally_df <- reactive({
     duplicate_data() |>

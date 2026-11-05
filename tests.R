@@ -572,6 +572,10 @@ testServer(shinyAppFile("app.R"), {
   one_col <- csv(c("a", "1", "2", "1"))
   do.call(session$setInputs, modifyList(base, list(input_df = upload(one_col))))
   check("a one-column file is read", identical(user_data()$a, c(1L, 2L, 1L)))
+  check(
+    "comparing columns in a one-column file is a message",
+    silent(output$output_duplicate_count_colpair)
+  )
   empty_col <- csv(c("a,b", "x,", "y,"))
   do.call(
     session$setInputs,
