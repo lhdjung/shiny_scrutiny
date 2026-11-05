@@ -271,17 +271,6 @@ ui <- page_navbar(
         full_screen = TRUE
       )
     ),
-    # Temporary note about partially incorrect info in the plot tooltips for
-    # DEBIT -- they are simply the same as for GRIM and GRIMMER.
-    conditionalPanel(
-      "input.name_test === 'DEBIT'",
-      card(
-        card_header("Please note"),
-        textOutput("debit_plot_tooltip_note"),
-        max_height = "500px",
-        full_screen = TRUE
-      )
-    ),
     # Basic analyses -- one wide card below:
     card(
       card_header_help(
@@ -1266,13 +1255,6 @@ server <- function(input, output, session) {
   )
 
   # Server: Misc text -----------------------------------------------------
-
-  output$debit_plot_tooltip_note <- renderText({
-    "If you hover over DEBIT plots, not all of the information
-    currently displayed is correct. Blue and red do stand for
-    consistent and inconsistent value sets. All consistent value sets
-    lie on the parabola."
-  })
 
   output$text_about <- renderUI({
     htmltools::tagList(
