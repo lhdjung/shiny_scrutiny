@@ -8,9 +8,9 @@ library(stringr)
 library(janitor)
 library(scrutiny)
 
-# scrutiny 1.0.0 takes decimal places as `digits_x` / `digits_sd`; with an older
-# version, every test fails on those arguments.
-if (packageVersion("scrutiny") < "1.0.0") {
+# Checked by feature, not version: development builds of 1.0.0 still took
+# `items`, and every GRIM and GRIMMER test fails on it.
+if (!"items_averaged" %in% names(formals(scrutiny::grim))) {
   stop(
     "This app needs scrutiny 1.0.0 or later. Install it with ",
     "remotes::install_github(\"lhdjung/scrutiny\")."
@@ -58,11 +58,10 @@ ui <- page_navbar(
       textInput("n", "Sample size column:", "n"),
       textInput("items_col", "Items column:", "") |>
         tooltip(
-          "If the data has a column with the number of scale items per mean, \
-          enter its name here. Its integer values will be multiplied with the \
-          sample size column to form the effective sample size when testing \
-          means with GRIM or GRIMMER. Leave blank \
-          to ignore."
+          "If the data has a column with the number of items averaged into \
+          each mean, enter its name here. It is used per row when testing \
+          means with GRIM or GRIMMER, instead of \"Items averaged per \
+          score\". Leave blank to ignore."
         )
     ),
 
@@ -94,14 +93,15 @@ ui <- page_navbar(
         "(input.name_test === 'GRIM' && input.mean_percent === 'Mean') || input.name_test === 'GRIMMER'",
         numericInput(
           "items",
-          label = "Number of scale items",
+          label = "Items averaged per score",
           value = 1,
           min = 1,
           step = 1
         ) |>
           tooltip(
-            "If the scale from which the means are derived is composed \
-            of multiple items, enter the number of those items here."
+            "How many items were averaged into each respondent's score, \
+            such as 4 for a mean over four questions. This is not the \
+            number of scale points. Use 1 for a single item."
           ),
         uiOutput("items_conflict_warning")
       ),
@@ -262,8 +262,8 @@ ui <- page_navbar(
       card(
         card_header_help(
           "Visualization",
-          "Blue: consistent, red: inconsistent. The grey background \
-          flags all possible inconsistent combinations, whether \
+          "Teal: consistent, rust: inconsistent. For GRIM and GRIMMER, the \
+          grey background flags all inconsistent combinations, whether \
           present in the data or not."
         ),
         plotOutput("output_plot"),
@@ -309,7 +309,7 @@ ui <- page_navbar(
       card(
         card_header_help(
           "Visualization of dispersed sequences",
-          "Blue: consistent, red: inconsistent. The cross pattern emerges \
+          "Teal: consistent, rust: inconsistent. The cross pattern emerges \
           because values are varied up and down along both axes.
           The grey background flags all inconsistent combinations, \
           whether present in the data or not."
@@ -329,7 +329,8 @@ ui <- page_navbar(
         is the minimum number of steps between the reported values \
         of a variable and the nearby consistent ones. \
         They are split up by the direction of variation: upward and downward.
-        \"NA\" indicates that no hits could be found in the respective way."
+        \"NA\" means that no hits were found that way, or that it is \
+        unknown because some results were undecidable."
       ),
       styled_table_div("output_df_audit_seq"),
       full_screen = TRUE
@@ -423,10 +424,7 @@ ui <- page_navbar(
 # Define server logic -----------------------------------------------------
 
 server <- function(input, output, session) {
-  # An items column supersedes the scalar "Number of scale items" input. Derived
-  # from the input rather than stored: `user_data()` folds the column into `n`
-  # and drops it, so a separate flag would only be a second copy of this fact,
-  # written as a side effect and read before it was set.
+  # An items column supersedes the scalar "Items averaged per score" input.
   items_col_active <- reactive(isTruthy(input$items_col))
 
   # Server: data upload ---------------------------------------------------
@@ -583,24 +581,23 @@ server <- function(input, output, session) {
   })
 
   # Items apply only where the sidebar shows them. A value left in the hidden
-  # field would otherwise multiply `n` for percentages, clearing real
+  # field would otherwise coarsen the granularity of percentages, clearing real
   # inconsistencies.
   uses_items <- reactive({
     input$name_test == "GRIMMER" ||
       (input$name_test == "GRIM" && input$mean_percent == "Mean")
   })
 
-  # The merge has already folded the items into `n`, so scrutiny must not
-  # multiply by them a second time.
+  # Percentages take no items: scrutiny needs `items_averaged = 1` for them.
   effective_items <- reactive({
-    if (!uses_items() || items_col_active()) {
+    if (!uses_items()) {
       return(1L)
     }
     validate(need(
       isTruthy(input$items) &&
         input$items >= 1 &&
         is_whole_number(input$items),
-      "ERROR: The number of scale items must be a positive whole number."
+      "ERROR: \"Items averaged per score\" must be a positive whole number."
     ))
     as.integer(input$items)
   })
@@ -613,7 +610,7 @@ server <- function(input, output, session) {
     if (items_col_active() && isTruthy(input$items) && input$items > 1) {
       tags$p(
         style = "color: orange; font-size: 0.85em;",
-        "\u26a0 \u201cNumber of scale items\u201d is ignored because an items column is active."
+        "\u26a0 \u201cItems averaged per score\u201d is ignored because an items column is active."
       )
     }
   })
@@ -646,57 +643,63 @@ server <- function(input, output, session) {
       )
     ))
 
-    # Merge the items column into `n` here, not at upload: duplicate analysis
-    # must see the data as uploaded, and DEBIT and percentages take no items.
-    items_col_name <- input$items_col
-    if (uses_items() && items_col_active()) {
-      validate(need(
-        items_col_name %in% names(df),
-        paste0(
-          "ERROR: Items column \"",
-          items_col_name,
-          "\" not found in the data."
-        )
-      ))
-      items_vals <- df[[items_col_name]]
-      validate(need(
-        is.numeric(items_vals),
-        paste0(
-          "ERROR: The items column (\"",
-          items_col_name,
-          "\") must be a numeric ",
-          "column, not strings."
-        )
-      ))
-      validate(need(
-        is.numeric(df[["n"]]),
-        "ERROR: The sample size column must be numeric to merge with the items column."
-      ))
-      # Checked here: a 0 would otherwise surface as a bad sample size.
-      bad_items <- items_vals[
-        !is_whole_number(items_vals) | items_vals < 1
-      ]
-      bad_items <- bad_items[!is.na(bad_items)]
-      validate(need(
-        length(bad_items) == 0L,
-        paste0(
-          "ERROR: The items column (\"",
-          items_col_name,
-          "\") must contain positive whole numbers only. Found: ",
-          quote_values(bad_items)
-        )
-      ))
-      df$n <- df$n * as.integer(items_vals)
-      df[[items_col_name]] <- NULL
+    # The items go to scrutiny as an `items_averaged` column, from the items
+    # column or the sidebar. Set here, not at upload: duplicate analysis must
+    # see the data as uploaded. DEBIT takes no items.
+    items <- NULL
+    if (input$name_test != "DEBIT") {
+      items_col_name <- input$items_col
+      if (!uses_items() || !items_col_active()) {
+        items <- effective_items()
+      } else {
+        validate(need(
+          items_col_name %in% names(df),
+          paste0(
+            "ERROR: Items column \"",
+            items_col_name,
+            "\" not found in the data."
+          )
+        ))
+        items <- df[[items_col_name]]
+        validate(need(
+          is.numeric(items),
+          paste0(
+            "ERROR: The items column (\"",
+            items_col_name,
+            "\") must be a numeric column, not strings."
+          )
+        ))
+        bad_items <- items[!is_whole_number(items) | items < 1]
+        bad_items <- bad_items[!is.na(bad_items)]
+        validate(need(
+          length(bad_items) == 0L,
+          paste0(
+            "ERROR: The items column (\"",
+            items_col_name,
+            "\") must contain positive whole numbers only. Found: ",
+            quote_values(bad_items)
+          )
+        ))
+        df[[items_col_name]] <- NULL
+      }
     }
-
+    # Columns that scrutiny adds itself make the mappers error, as in the
+    # app's own downloads. The test recomputes them anyway.
+    df <- select(
+      df,
+      -any_of(c(
+        "consistency",
+        "exp_incon",
+        "reason",
+        "digits_x",
+        "digits_sd",
+        "items_averaged"
+      ))
+    )
+    if (!is.null(items)) {
+      df$items_averaged <- as.integer(items)
+    }
     df <- df[complete.cases(df[, required_cols]), ]
-    # Drop any surviving "items" column. scrutiny consumes one silently and
-    # multiplies `n` by it, overriding the `items` argument. A column consumed
-    # by the merge is already gone, so this only ever hits an unrelated
-    # leftover. A "consistency" column, as in the app's own downloads, makes
-    # every mapper error; the test recomputes it anyway.
-    df <- select(df, -any_of(c("items", "consistency")))
     validate(need(
       nrow(df) > 0,
       "ERROR: No rows have all of the required columns."
@@ -853,7 +856,6 @@ server <- function(input, output, session) {
     method <- rounding_method()
     ti <- test_input()
     df <- ti$df
-    items <- effective_items()
     is_percent <- percent()
 
     if (input$name_test == "DEBIT") {
@@ -870,7 +872,6 @@ server <- function(input, output, session) {
       "GRIM" = grim_map(
         df,
         digits_x = ti$digits_x,
-        items = items,
         percent = is_percent,
         rounding = method
       ),
@@ -878,7 +879,6 @@ server <- function(input, output, session) {
         df,
         digits_x = ti$digits_x,
         digits_sd = ti$digits_sd,
-        items = items,
         rounding = method
       ),
       "DEBIT" = debit_map(
@@ -888,14 +888,6 @@ server <- function(input, output, session) {
         rounding = method
       )
     )
-
-    # Many consistency tests have a key argument / column corresponding to the
-    # sample size ("n"). It should be integer because, as a double, the app
-    # would misleadingly display it with decimal zeros, like, e.g., "5.00".
-    if (any(names(out) == "n")) {
-      out <- mutate(out, n = as.integer(n))
-    }
-    out
   })
 
   # What the results table shows: values at their tested precision, verdicts
@@ -904,10 +896,7 @@ server <- function(input, output, session) {
     df <- tested_df()
     df |>
       format_tested_values() |>
-      rename_after_testing(
-        input$name_test,
-        percent = percent()
-      ) |>
+      rename_after_testing(percent()) |>
       label_consistency(untestable = grim_untestable(df))
   })
 
@@ -938,7 +927,6 @@ server <- function(input, output, session) {
   tested_seq_parts <- reactive({
     method <- rounding_method()
     ti <- test_input()
-    items <- effective_items()
     is_percent <- percent()
     steps <- seq_len(dispersion_steps())
     msg_none <- "No inconsistent cases to disperse from. All tested values are consistent."
@@ -959,7 +947,6 @@ server <- function(input, output, session) {
           df,
           digits_x = dp_x,
           dispersion = steps,
-          items = items,
           percent = is_percent,
           rounding = method
         ),
@@ -968,7 +955,6 @@ server <- function(input, output, session) {
           digits_x = dp_x,
           digits_sd = dp_sd,
           dispersion = steps,
-          items = items,
           rounding = method
         ),
         "DEBIT" = debit_map_seq(
@@ -979,36 +965,41 @@ server <- function(input, output, session) {
           rounding = method
         )
       ))
-      # `case` counts rows of what the mapper saw; point it back at the rows
-      # of the results table above.
-      out$case <- rows[out$case]
+      # `case` counts rows of what the mapper saw. It is left alone here,
+      # since `audit_seq()` refuses edited output; `rows` points it back at
+      # the rows of the results table above.
+      out <- list(out)
+      attr(out, "rows") <- rows
       out
     })
-    parts <- Filter(\(part) nrow(part) > 0L, parts)
+    parts <- Filter(\(part) nrow(part[[1L]]) > 0L, parts)
     validate(need(length(parts) > 0L, msg_none))
-    parts
+    list(
+      out = lapply(parts, `[[`, 1L),
+      case = lapply(parts, \(part) attr(part, "rows")[part[[1L]]$case])
+    )
   })
 
-  # Binding drops scrutiny's classes, so the bound table is for display and
-  # download only; the summary and plot work on the parts.
+  # The bound table is for display and download only; the summary and plot
+  # work on the parts.
   tested_df_seq <- reactive({
-    arrange(bind_rows(tested_seq_parts()), case)
+    parts <- tested_seq_parts()
+    out <- bind_plain(parts$out)
+    out$case <- unlist(parts$case)
+    arrange(out, case)
   })
 
   df_audit_seq <- reactive({
     parts <- tested_seq_parts()
-    cases <- unlist(lapply(parts, \(part) unique(part$case)))
-    bind_rows(lapply(parts, audit_seq))[order(cases), ]
+    cases <- unlist(lapply(parts$case, unique))
+    bind_rows(lapply(parts$out, audit_seq))[order(cases), ]
   })
 
   results_seq_display <- reactive({
     df <- tested_df_seq()
     df |>
       format_tested_values() |>
-      rename_after_testing_seq(
-        input$name_test,
-        percent = percent()
-      ) |>
+      rename_after_testing_seq(percent()) |>
       label_consistency(untestable = grim_untestable(df))
   })
 
@@ -1020,16 +1011,19 @@ server <- function(input, output, session) {
         .cols = starts_with("hits") | starts_with("diff"),
         .fns = as.integer
       )) |>
-      rename_after_audit_seq(input$name_test, percent()) |>
+      rename_after_audit_seq(percent()) |>
       label_consistency()
   })
 
   output$output_plot_seq <- renderPlot({
-    parts <- tested_seq_parts()
-    # Groups that differ only in the SD's precision share one raster. Binding
-    # drops the classes the plot reads, so they are put back.
-    df <- bind_rows(parts)
-    class(df) <- class(parts[[1L]])
+    parts <- tested_seq_parts()$out
+    # Groups that differ only in the SD's precision share one raster. The
+    # plot reads the class and the recorded settings, which all parts share.
+    df <- bind_plain(parts)
+    attributes(df)[c("class", "scrutiny")] <- attributes(parts[[1L]])[c(
+      "class",
+      "scrutiny"
+    )]
     validate_plot_precision(df, input$name_test)
     plot_test_results(df, input$name_test, plot_size_text())
   })
@@ -1110,10 +1104,7 @@ server <- function(input, output, session) {
         tested_df() |>
           mark_untestable() |>
           format_tested_values() |>
-          rename_after_testing(
-            name_test = input$name_test,
-            percent = percent()
-          ),
+          rename_after_testing(percent()),
         file
       )
     }
@@ -1150,10 +1141,7 @@ server <- function(input, output, session) {
         tested_df_seq() |>
           mark_untestable() |>
           format_tested_values() |>
-          rename_after_testing_seq(
-            name_test = input$name_test,
-            percent = percent()
-          ),
+          rename_after_testing_seq(percent()),
         file
       )
     }
@@ -1170,7 +1158,7 @@ server <- function(input, output, session) {
     content = function(file) {
       write_download(
         df_audit_seq() |>
-          rename_after_audit_seq(input$name_test, percent()),
+          rename_after_audit_seq(percent()),
         file
       )
     }

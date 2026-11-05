@@ -22,7 +22,7 @@ check <- function(label, expr) {
 # decimal places the paper printed, and consistent at one. If this flips, the
 # app is clearing real inconsistencies.
 grim1 <- function(x, n, digits) {
-  grim_map(tibble(x = x, n = n), digits_x = digits)$consistency
+  grim_map(tibble(x = x, n = n), digits_x = digits, items_averaged = 1)$consistency
 }
 
 check("4.10 at n=25 is inconsistent at 2 dp", !grim1(4.10, 25L, 2))
@@ -41,7 +41,8 @@ check(
   "a whole-number mean keeps its zeros",
   !grim_map(
     mutate(fmt, x = as.numeric(x)),
-    digits_x = digits_declared(fmt$x, 0)
+    digits_x = digits_declared(fmt$x, 0),
+    items_averaged = 1
   )$consistency[1]
 )
 
@@ -85,8 +86,13 @@ d <- tibble(
   n = c(40L, 40L, 25L)
 )
 audits <- list(
-  GRIM = audit(grim_map(d, digits_x = 2)),
-  GRIMMER = audit(grimmer_map(d, digits_x = 2, digits_sd = 2)),
+  GRIM = audit(grim_map(d, digits_x = 2, items_averaged = 1)),
+  GRIMMER = audit(grimmer_map(
+    d,
+    digits_x = 2,
+    digits_sd = 2,
+    items_averaged = 1
+  )),
   DEBIT = audit(debit_map(
     tibble(x = c(0.35, 0.47), sd = c(0.48, 0.50), n = c(20L, 40L)),
     digits_x = 2,
@@ -102,20 +108,23 @@ for (name_test in names(audits)) {
       all(nzchar(names(renamed)))
   )
   check(
-    paste(name_test, "audit columns are actually relabelled"),
-    "Inconsistent cases" %in% names(renamed)
+    paste(name_test, "audit columns are all relabelled"),
+    all(grepl("^[A-Z]", names(renamed)))
   )
 }
-check(
-  "GRIMMER's added `fail_scale` column is labelled",
-  "Failed scale bounds" %in% names(rename_after_audit(audits$GRIMMER, FALSE))
-)
 
-# Positional renames of the dispersed-sequence summaries must match scrutiny's
-# current column counts; `rlang::set_names()` errors loudly otherwise.
+# Labels in the sequence tables are matched by name, so a column scrutiny adds
+# keeps its raw (lowercase) name and shows up here.
+labelled <- function(df) all(grepl("^[A-Z]", names(df)))
 seqs <- list(
-  GRIM = grim_map_seq(d, digits_x = 2, dispersion = 1:2),
-  GRIMMER = grimmer_map_seq(d, digits_x = 2, digits_sd = 2, dispersion = 1:2),
+  GRIM = grim_map_seq(d, digits_x = 2, items_averaged = 1, dispersion = 1:2),
+  GRIMMER = grimmer_map_seq(
+    d,
+    digits_x = 2,
+    digits_sd = 2,
+    items_averaged = 1,
+    dispersion = 1:2
+  ),
   DEBIT = debit_map_seq(
     tibble(x = c(0.35, 0.47), sd = c(0.48, 0.50), n = c(20L, 40L)),
     digits_x = 2,
@@ -125,15 +134,12 @@ seqs <- list(
 )
 for (name_test in names(seqs)) {
   check(
-    paste(name_test, "sequence summary renames cleanly"),
-    is.data.frame(rename_after_audit_seq(
-      audit_seq(seqs[[name_test]]),
-      name_test
-    ))
+    paste(name_test, "sequence summary is all relabelled"),
+    labelled(rename_after_audit_seq(audit_seq(seqs[[name_test]])))
   )
   check(
-    paste(name_test, "sequence results rename cleanly"),
-    is.data.frame(rename_after_testing_seq(seqs[[name_test]], name_test, FALSE))
+    paste(name_test, "sequence results are all relabelled"),
+    labelled(rename_after_testing_seq(seqs[[name_test]], FALSE))
   )
 }
 
@@ -154,6 +160,7 @@ for (m in methods_ui) {
     nrow(grim_map(
       d[, c("x", "n")],
       digits_x = 2,
+      items_averaged = 1,
       rounding = select_rounding_method(m)
     )) ==
       3
@@ -161,10 +168,9 @@ for (m in methods_ui) {
 }
 
 # --- Items handling, driven through the real reactive graph ----------------
-# The items column is folded into `n` by the app, and scrutiny will silently
-# fold a leftover `items` column in a second time. Both flow into `n`, and an
-# inflated `n` only ever makes GRIM more permissive, so a mistake here clears
-# real inconsistencies without erroring.
+# Items reach scrutiny as an `items_averaged` column. Too many items only ever
+# make GRIM more permissive, so a mistake here clears real inconsistencies
+# without erroring.
 
 suppressMessages(library(shiny))
 
@@ -181,7 +187,7 @@ upload <- function(path) {
     datapath = path
   )
 }
-# `n_items` is the column to merge; `items` is an unrelated leftover.
+# `n_items` is the items column; `items` is an unrelated leftover.
 clash <- csv(c("x,n,n_items,items", "5.30,40,3,7", "4.10,25,3,7"))
 
 base <- list(
@@ -209,10 +215,6 @@ testServer(shinyAppFile("app.R"), {
     modifyList(base, list(items_col = "n_items", items = 4))
   )
   check("items column is active before any upload", items_col_active())
-  check(
-    "scalar items is bypassed while a column is active",
-    effective_items() == 1L
-  )
 
   do.call(
     session$setInputs,
@@ -227,26 +229,33 @@ testServer(shinyAppFile("app.R"), {
     )
   )
   check(
-    "items column is folded into n exactly once",
-    all(testable_data()$n == c(120L, 75L))
+    "the items column becomes `items_averaged`, and `n` stays as reported",
+    identical(testable_data()$items_averaged, c(3L, 3L)) &&
+      identical(testable_data()$n, c(40L, 25L))
   )
   check(
-    "a leftover `items` column never reaches scrutiny",
-    !"items" %in% names(testable_data())
+    "a leftover `items` column is just another column",
+    identical(tested_df()$items, c(7L, 7L))
   )
-  # Fails at n = 525, the sample size the leftover column used to produce.
-  check(
-    "4.10 at the merged n = 75 stays inconsistent",
-    !tested_df()$consistency[2]
-  )
+  check("4.10 at n = 25 with 3 items is inconsistent", !tested_df()$consistency[2])
 
   # Turning the column off must revert immediately, with no stale flag.
   session$setInputs(items_col = "", items = 4)
   check(
     "clearing the column restores the scalar input",
-    effective_items() == 4L
+    identical(testable_data()$items_averaged, c(4L, 4L))
   )
-  check("clearing the column restores n", all(testable_data()$n == c(40L, 25L)))
+  session$setInputs(items_col = "n_items", items = NA)
+  check(
+    "a blank scalar field doesn't block an active items column",
+    identical(testable_data()$items_averaged, c(3L, 3L))
+  )
+  own <- csv(c("x,n,items_averaged", "4.10,25,9"))
+  do.call(session$setInputs, modifyList(base, list(input_df = upload(own))))
+  check(
+    "an uploaded `items_averaged` column doesn't override the sidebar",
+    identical(testable_data()$items_averaged, 1L)
+  )
 
   # Trailing zeros survive the upload, and each row is tested at the
   # precision it was reported with: "4.10" is inconsistent at n = 25, "4.1"
@@ -309,7 +318,7 @@ testServer(shinyAppFile("app.R"), {
       c("4.1", "4.10", "5.00")
     )
   )
-  # grim_plot() errors on mixed precision; the app must say why instead.
+  # grim_plot_grid() errors on mixed precision; the app must say why instead.
   check(
     "plot on mixed precision is a message, not a crash",
     inherits(
@@ -357,15 +366,18 @@ testServer(shinyAppFile("app.R"), {
   )
   check("10.4% at n = 23 stays inconsistent", !tested_df()$consistency)
   session$setInputs(items_col = "k")
-  check("items column is not merged for percentages", testable_data()$n == 23L)
+  check(
+    "the items column is not used for percentages",
+    identical(testable_data()$items_averaged, 1L)
+  )
   session$setInputs(name_test = "DEBIT", items = NA, items_col = "")
   check(
     "DEBIT is not blocked by the hidden items field",
     effective_items() == 1L
   )
 
-  # Duplicate analysis sees the data as uploaded, not with items merged into
-  # `n` -- that fabricated a duplicate between `n` and `other` (75, 80).
+  # Duplicate analysis sees the data as uploaded, without the items moved to
+  # `items_averaged`.
   dup <- csv(c("x,n,k,other", "4.10,25,3,75", "5.30,40,2,80"))
   do.call(
     session$setInputs,
@@ -376,8 +388,8 @@ testServer(shinyAppFile("app.R"), {
     identical(user_data()$n, c(25L, 40L)) && "k" %in% names(user_data())
   )
   check(
-    "the test still sees merged n",
-    identical(testable_data()$n, c(75L, 80L))
+    "the test sees the items per row",
+    identical(testable_data()$items_averaged, c(3L, 2L))
   )
 
   # --- UX ------------------------------------------------------------------
