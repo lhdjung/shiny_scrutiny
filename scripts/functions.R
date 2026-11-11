@@ -54,7 +54,10 @@ result_labels <- function(percent) {
   set_names(names(labels), labels)
 }
 
+# The app only tests whole-number data, so `data_type` is "integer" throughout
+# and not worth a column.
 rename_after_testing <- function(df, percent) {
+  df$data_type <- NULL
   names(df) <- str_to_title(names(df))
   rename(df, any_of(result_labels(percent)))
 }
@@ -91,6 +94,7 @@ rename_after_audit <- function(df, percent) {
 
 # For GRIM on percentages, "Mean" becomes "Percentage", as in the tables above.
 rename_after_audit_seq <- function(df, percent = FALSE) {
+  df$data_type <- NULL
   vars <- c(x = if (isTRUE(percent)) "Percentage" else "Mean", sd = "SD", n = "N")
   labels <- c(
     vars,

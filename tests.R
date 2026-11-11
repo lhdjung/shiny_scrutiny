@@ -22,7 +22,12 @@ check <- function(label, expr) {
 # decimal places the paper printed, and consistent at one. If this flips, the
 # app is clearing real inconsistencies.
 grim1 <- function(x, n, digits) {
-  grim_map(tibble(x = x, n = n), digits_x = digits, items_averaged = 1)$consistency
+  grim_map(
+    tibble(x = x, n = n),
+    digits_x = digits,
+    items_averaged = 1,
+    data_type = "integer"
+  )$consistency
 }
 
 check("4.10 at n=25 is inconsistent at 2 dp", !grim1(4.10, 25L, 2))
@@ -42,7 +47,8 @@ check(
   !grim_map(
     mutate(fmt, x = as.numeric(x)),
     digits_x = digits_declared(fmt$x, 0),
-    items_averaged = 1
+    items_averaged = 1,
+    data_type = "integer"
   )$consistency[1]
 )
 
@@ -86,17 +92,24 @@ d <- tibble(
   n = c(40L, 40L, 25L)
 )
 audits <- list(
-  GRIM = audit(grim_map(d, digits_x = 2, items_averaged = 1)),
+  GRIM = audit(grim_map(
+    d,
+    digits_x = 2,
+    items_averaged = 1,
+    data_type = "integer"
+  )),
   GRIMMER = audit(grimmer_map(
     d,
     digits_x = 2,
     digits_sd = 2,
-    items_averaged = 1
+    items_averaged = 1,
+    data_type = "integer"
   )),
   DEBIT = audit(debit_map(
     tibble(x = c(0.35, 0.47), sd = c(0.48, 0.50), n = c(20L, 40L)),
     digits_x = 2,
-    digits_sd = 2
+    digits_sd = 2,
+    data_type = "integer"
   ))
 )
 for (name_test in names(audits)) {
@@ -117,25 +130,33 @@ for (name_test in names(audits)) {
 # keeps its raw (lowercase) name and shows up here.
 labelled <- function(df) all(grepl("^[A-Z]", names(df)))
 seqs <- list(
-  GRIM = grim_map_seq(d, digits_x = 2, items_averaged = 1, dispersion = 1:2),
+  GRIM = grim_map_seq(
+    d,
+    digits_x = 2,
+    items_averaged = 1,
+    data_type = "integer",
+    dispersion = 1:2
+  ),
   GRIMMER = grimmer_map_seq(
     d,
     digits_x = 2,
     digits_sd = 2,
     items_averaged = 1,
+    data_type = "integer",
     dispersion = 1:2
   ),
   DEBIT = debit_map_seq(
     tibble(x = c(0.35, 0.47), sd = c(0.48, 0.50), n = c(20L, 40L)),
     digits_x = 2,
     digits_sd = 2,
+    data_type = "integer",
     dispersion = 1:2
   )
 )
 for (name_test in names(seqs)) {
   check(
     paste(name_test, "sequence summary is all relabelled"),
-    labelled(rename_after_audit_seq(audit_seq(seqs[[name_test]])))
+    labelled(rename_after_audit_seq(audit(seqs[[name_test]])))
   )
   check(
     paste(name_test, "sequence results are all relabelled"),
@@ -161,6 +182,7 @@ for (m in methods_ui) {
       d[, c("x", "n")],
       digits_x = 2,
       items_averaged = 1,
+      data_type = "integer",
       rounding = select_rounding_method(m)
     )) ==
       3

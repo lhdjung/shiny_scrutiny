@@ -8,9 +8,9 @@ library(stringr)
 library(janitor)
 library(scrutiny)
 
-# Checked by feature, not version: development builds of 1.0.0 still took
-# `items`, and every GRIM and GRIMMER test fails on it.
-if (!"items_averaged" %in% names(formals(scrutiny::grim))) {
+# Checked by feature, not version: development builds of 1.0.0 still lacked
+# `data_type`, which every test now requires.
+if (!"data_type" %in% names(formals(scrutiny::grim))) {
   stop(
     "This app needs scrutiny 1.0.0 or later. Install it with ",
     "remotes::install_github(\"lhdjung/scrutiny\")."
@@ -450,7 +450,7 @@ server <- function(input, output, session) {
       # two decimal places.
       out <- mutate(
         pigs5,
-        across(c(x, sd), \(col) restore_zeros(col, width = 2))
+        across(c(x, sd), \(col) formatC(col, format = "f", digits = 2))
       )
       is_european <- FALSE
     } else {
@@ -699,7 +699,8 @@ server <- function(input, output, session) {
         "reason",
         "digits_x",
         "digits_sd",
-        "items_averaged"
+        "items_averaged",
+        "data_type"
       ))
     )
     if (!is.null(items)) {
@@ -882,19 +883,22 @@ server <- function(input, output, session) {
       "GRIM" = grim_map(
         df,
         digits_x = ti$digits_x,
-        percent = is_percent,
+        data_type = "integer",
+        x_meaning = if (is_percent) "percentage" else "mean",
         rounding = method
       ),
       "GRIMMER" = grimmer_map(
         df,
         digits_x = ti$digits_x,
         digits_sd = ti$digits_sd,
+        data_type = "integer",
         rounding = method
       ),
       "DEBIT" = debit_map(
         df,
         digits_x = ti$digits_x,
         digits_sd = ti$digits_sd,
+        data_type = "integer",
         rounding = method
       )
     )
@@ -957,7 +961,8 @@ server <- function(input, output, session) {
           df,
           digits_x = dp_x,
           dispersion = steps,
-          percent = is_percent,
+          data_type = "integer",
+          x_meaning = if (is_percent) "percentage" else "mean",
           rounding = method
         ),
         "GRIMMER" = grimmer_map_seq(
@@ -965,6 +970,7 @@ server <- function(input, output, session) {
           digits_x = dp_x,
           digits_sd = dp_sd,
           dispersion = steps,
+          data_type = "integer",
           rounding = method
         ),
         "DEBIT" = debit_map_seq(
@@ -972,11 +978,12 @@ server <- function(input, output, session) {
           digits_x = dp_x,
           digits_sd = dp_sd,
           dispersion = steps,
+          data_type = "integer",
           rounding = method
         )
       ))
       # `case` counts rows of what the mapper saw. It is left alone in
-      # `out`, since `audit_seq()` refuses edited output; `case` points it
+      # `out`, since `audit()` refuses edited output; `case` points it
       # back at the rows of the results table above.
       list(out = out, case = rows[out$case])
     })
@@ -997,7 +1004,7 @@ server <- function(input, output, session) {
   df_audit_seq <- reactive({
     parts <- tested_seq_parts()
     cases <- unlist(lapply(parts$case, unique))
-    bind_rows(lapply(parts$out, audit_seq))[order(cases), ]
+    bind_rows(lapply(parts$out, audit))[order(cases), ]
   })
 
   results_seq_display <- reactive({
